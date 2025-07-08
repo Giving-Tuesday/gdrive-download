@@ -1,0 +1,5 @@
+[console_scripts]
+aar-analyze = givingtuesday_aar.cli.analyze:main
+aar-download = givingtuesday_aar.cli.download:main
+aar-extract-data = givingtuesday_aar.cli.extract_data:main
+aar-manage = givingtuesday_aar.cli.manage:main
