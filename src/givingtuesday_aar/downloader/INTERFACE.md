@@ -1,0 +1,1 @@
+By default, the downloader module should accept *either* a file URL or a google drive folder URL.  The Google Drive folder can belong to a personal drive or a shared drive. Output should all be directed to a subfolder of the directory in which commands are issued, or optionally to a path passed by 

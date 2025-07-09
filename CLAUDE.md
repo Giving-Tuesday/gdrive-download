@@ -8,29 +8,48 @@ This is a Python package called `givingtuesday-aar-tools` that downloads After A
 
 ## Core Commands
 
+**IMPORTANT: Always use the `.venv` environment and `uv` for all Python commands.**
+
 ### Development Commands
 ```bash
-# Install package in development mode
-pip install -e .
-pip install -e ".[dev]"  # With dev dependencies
+# Activate the virtual environment (if needed)
+source .venv/bin/activate
+
+# Install package in development mode using uv
+uv pip install -e .
+uv pip install -e ".[dev]"  # With dev dependencies
 
 # Run tests
-pytest
-pytest --cov=src/givingtuesday_aar --cov-report=html
+uv run pytest
+uv run pytest --cov=src/givingtuesday_aar --cov-report=html
 
 # Code quality checks
-black src/ tests/           # Format code
-isort src/ tests/           # Sort imports  
-mypy src/                   # Type checking
-flake8 src/ tests/          # Linting
-pre-commit run --all-files  # Run all pre-commit hooks
+uv run black src/ tests/           # Format code
+uv run isort src/ tests/           # Sort imports  
+uv run mypy src/                   # Type checking
+uv run flake8 src/ tests/          # Linting
+uv run pre-commit run --all-files  # Run all pre-commit hooks
 ```
 
 ### CLI Tools
-The package provides 4 command-line tools:
+The package provides 5 command-line tools:
 ```bash
 # Download and convert documents from Google Drive
 aar-download -u "https://drive.google.com/drive/folders/FOLDER_ID" -c credentials.json
+
+# Search for files by pattern across Google Drive
+aar-search -p "AAR*"                    # Search all drives
+aar-search -p "*2024*" -s personal      # Search personal drive only
+aar-search -p "^AAR.*\.docx$"           # Regex pattern search
+
+# Create shortcuts to search results in a Google Drive folder
+aar-search -p "AAR*" --no-download --create-shortcuts FOLDER_ID
+aar-search -p "Project Brief*" --create-shortcuts FOLDER_ID  # Search, download, and create shortcuts
+
+# Search for recently modified files
+aar-search -p "AAR*" --since 7d         # Files modified in last 7 days
+aar-search -p "Report*" --since 2024-01-01  # Files modified since specific date
+aar-search -p "Project*" --since 2w     # Last 2 weeks (also supports: 1h, 1m)
 
 # Analyze markdown documents and generate reports
 aar-analyze -i markdown -o reports
@@ -49,6 +68,7 @@ aar-manage init-config
 
 1. **Downloader Module** (`src/givingtuesday_aar/downloader/`)
    - `GoogleDriveDownloader`: Handles OAuth authentication and downloads files from Google Drive
+   - `GoogleDriveSearcher`: Search for files by pattern across personal and shared drives
    - `FileConverter`: Converts Word documents to markdown using mammoth + markdownify
    - `FileRelationshipTracker`: Tracks relationships between Google Drive URLs, downloaded files, and converted markdown
 

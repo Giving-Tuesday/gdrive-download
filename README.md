@@ -79,6 +79,24 @@ challenges = analyzer.analyze_challenges()
 successes = analyzer.analyze_successes()
 ```
 
+## Main Components
+
+### Downloader Module
+The downloader module handles all interactions with Google Drive, including authentication, file discovery, downloading, and format conversion. Key features:
+- OAuth2 authentication with token persistence
+- Batch downloading from Google Drive folders
+- File search across personal and shared drives
+- Document conversion to markdown format
+- Relationship tracking between Drive URLs and local files
+
+### Analyzer Module
+The analyzer module processes converted documents to identify patterns and generate insights. Key features:
+- Pattern-based content analysis using configurable regex
+- Categorization of challenges and successes
+- Multi-document theme extraction
+- Markdown report generation with citations
+- JSON data export for further analysis
+
 ## Command Line Tools
 
 ### `aar-download` - Download and Convert
@@ -130,6 +148,39 @@ aar-analyze -i markdown \
             -o reports \
             -t all \
             --url-mappings file_relationships.csv
+```
+
+### `aar-search` - Search Google Drive
+
+Search for files by pattern across Google Drive and optionally download them.
+
+```bash
+aar-search [OPTIONS]
+
+Options:
+  -p, --pattern TEXT        File name pattern (required, supports wildcards)
+  -s, --scope [personal|all|shared]  Drive scope [default: all]
+  --shared-drive-id TEXT    Specific shared drive ID when scope is "shared"
+  -t, --file-types TEXT     File types to search [default: document]
+  -o, --output-dir TEXT     Output directory
+  -c, --credentials TEXT    Google API credentials file [default: credentials.json]
+  --download/--no-download  Download found files [default: download]
+  --convert/--no-convert    Convert to markdown [default: convert]
+  --max-results INT         Maximum results [default: 100]
+  --create-shortcuts TEXT   Create shortcuts in specified folder ID
+  --since TEXT              Filter files modified since date (e.g., 7d, 2024-01-01)
+```
+
+**Examples:**
+```bash
+# Search for AAR documents
+aar-search -p "AAR*"
+
+# Search and create shortcuts without downloading
+aar-search -p "Project Brief*" --no-download --create-shortcuts FOLDER_ID
+
+# Search for recent files (last 7 days)
+aar-search -p "Report*" --since 7d
 ```
 
 ### `aar-manage` - Management Utilities

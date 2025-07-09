@@ -1,5 +1,4 @@
 """Google Drive downloading functionality."""
-# MATURE CODE.  DO NOT TOUCH THIS FILE WITHOUT SPECIFIC INSTRUCTION
 
 import io
 import os
@@ -23,7 +22,7 @@ from ..config import DownloaderConfig
 class GoogleDriveDownloader:
     """Downloads files from Google Drive with support for shared folders."""
     
-    SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+    SCOPES = ['https://www.googleapis.com/auth/drive']
     
     def __init__(self, config: DownloaderConfig):
         self.config = config
@@ -350,3 +349,51 @@ class GoogleDriveDownloader:
                 })
         
         return file_mappings
+    
+    def download_search_results(self, search_results: List[Dict[str, str]], progress_callback=None) -> List[Tuple[str, Optional[Path]]]:
+        """Download files from search results.
+        
+        Args:
+            search_results: List of file info dicts from GoogleDriveSearcher
+            progress_callback: Optional callback function for progress updates
+            
+        Returns:
+            List of tuples (webViewLink, local_file_path)
+        """
+        results = []
+        
+        # Ensure output directory exists
+        self.config.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=self.console
+        ) as progress:
+            task = progress.add_task("Downloading search results...", total=len(search_results))
+            
+            for file_info in search_results:
+                # Add drive name to filename if multiple drives
+                if 'drive' in file_info and file_info['drive'] != 'My Drive':
+                    drive_prefix = self._sanitize_filename(file_info['drive'])
+                    original_name = file_info['name']
+                    file_name = f"[{drive_prefix}] {original_name}"
+                else:
+                    file_name = file_info['name']
+                
+                file_path = self.download_file(
+                    file_info['id'],
+                    file_name,
+                    file_info.get('mimeType', 'application/octet-stream')
+                )
+                
+                results.append((file_info.get('webViewLink', ''), file_path))
+                
+                if progress_callback:
+                    progress_callback(file_info, file_path)
+                
+                progress.advance(task)
+        
+        return results

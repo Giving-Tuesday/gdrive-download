@@ -4,6 +4,7 @@ src/givingtuesday_aar/__init__.py
 src/givingtuesday_aar/config.py
 src/givingtuesday_aar/analyzer/__init__.py
 src/givingtuesday_aar/analyzer/aar_analyzer.py
+src/givingtuesday_aar/analyzer/doc_analyzer.py
 src/givingtuesday_aar/analyzer/pattern_matcher.py
 src/givingtuesday_aar/analyzer/report_generator.py
 src/givingtuesday_aar/cli/__init__.py
@@ -11,8 +12,10 @@ src/givingtuesday_aar/cli/analyze.py
 src/givingtuesday_aar/cli/download.py
 src/givingtuesday_aar/cli/extract_data.py
 src/givingtuesday_aar/cli/manage.py
+src/givingtuesday_aar/cli/search.py
 src/givingtuesday_aar/downloader/__init__.py
 src/givingtuesday_aar/downloader/drive_downloader.py
+src/givingtuesday_aar/downloader/drive_searcher.py
 src/givingtuesday_aar/downloader/file_converter.py
 src/givingtuesday_aar/downloader/relationship_tracker.py
 src/givingtuesday_aar/utils/__init__.py

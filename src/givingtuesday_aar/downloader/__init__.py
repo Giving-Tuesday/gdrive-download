@@ -1,8 +1,9 @@
 """Google Drive downloading and file conversion utilities."""
-# MATURE CODE. DO NOT TOUCH THIS DIRECTORY WITHOUT SPECIFRIC INSTRUCTIONS
+
 
 from .drive_downloader import GoogleDriveDownloader
 from .file_converter import FileConverter
 from .relationship_tracker import FileRelationshipTracker
+from .drive_searcher import GoogleDriveSearcher
 
-__all__ = ["GoogleDriveDownloader", "FileConverter", "FileRelationshipTracker"]
+__all__ = ["GoogleDriveDownloader", "FileConverter", "FileRelationshipTracker", "GoogleDriveSearcher"]
