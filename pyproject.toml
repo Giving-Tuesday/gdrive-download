@@ -3,22 +3,21 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "givingtuesday-aar-tools"
+name = "gdrive-download"
 version = "1.0.0"
 authors = [
     {name = "GivingTuesday", email = "tech@givingtuesday.org"},
 ]
-description = "Tools for downloading and analyzing After Action Review documents from Google Drive"
+description = "Tools for downloading and converting documents from Google Drive to markdown"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -55,30 +54,30 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/givingtuesday/aar-tools"
-"Bug Reports" = "https://github.com/givingtuesday/aar-tools/issues"
-"Source" = "https://github.com/givingtuesday/aar-tools"
+Homepage = "https://github.com/givingtuesday/gdrive-download"
+"Bug Reports" = "https://github.com/givingtuesday/gdrive-download/issues"
+"Source" = "https://github.com/givingtuesday/gdrive-download"
 
 [project.scripts]
-aar-download = "givingtuesday_aar.cli.download:main"
-aar-analyze = "givingtuesday_aar.cli.analyze:main"
-aar-extract-data = "givingtuesday_aar.cli.extract_data:main"
-aar-manage = "givingtuesday_aar.cli.manage:main"
-aar-search = "givingtuesday_aar.cli.search:search"
+gdrive-download = "gdrive_download.cli.download:main"
+gdrive-analyze = "gdrive_download.cli.analyze:main"
+gdrive-extract-data = "gdrive_download.cli.extract_data:main"
+gdrive-manage = "gdrive_download.cli.manage:main"
+gdrive-search = "gdrive_download.cli.search:search"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py39']
 
 [tool.isort]
 profile = "black"
 multi_line_output = 3
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -88,4 +87,4 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "--cov=src/givingtuesday_aar --cov-report=html --cov-report=term"
+addopts = "--cov=src/gdrive_download --cov-report=html --cov-report=term"

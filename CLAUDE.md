@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python package called `givingtuesday-aar-tools` that downloads After Action Review (AAR) documents from Google Drive, converts them to markdown, and analyzes them for patterns and insights. The system is modular with separate components for downloading, conversion, analysis, and reporting.
+This is a Python package called `gdrive-download` that downloads and converts documents from Google Drive to markdown format. The core function is Google Drive document downloading and conversion, with additional analysis capabilities for After Action Review (AAR) documents. The system is modular with separate components for downloading, conversion, analysis, and reporting.
 
 ## Core Commands
 
@@ -21,7 +21,7 @@ uv pip install -e ".[dev]"  # With dev dependencies
 
 # Run tests
 uv run pytest
-uv run pytest --cov=src/givingtuesday_aar --cov-report=html
+uv run pytest --cov=src/gdrive_download --cov-report=html
 
 # Code quality checks
 uv run black src/ tests/           # Format code
@@ -35,53 +35,53 @@ uv run pre-commit run --all-files  # Run all pre-commit hooks
 The package provides 5 command-line tools:
 ```bash
 # Download and convert documents from Google Drive
-aar-download -u "https://drive.google.com/drive/folders/FOLDER_ID" -c credentials.json
+gdrive-download -u "https://drive.google.com/drive/folders/FOLDER_ID" -c credentials.json
 
 # Search for files by pattern across Google Drive
-aar-search -p "AAR*"                    # Search all drives
-aar-search -p "*2024*" -s personal      # Search personal drive only
-aar-search -p "^AAR.*\.docx$"           # Regex pattern search
+gdrive-search -p "AAR*"                    # Search all drives
+gdrive-search -p "*2024*" -s personal      # Search personal drive only
+gdrive-search -p "^AAR.*\.docx$"           # Regex pattern search
 
 # Create shortcuts to search results in a Google Drive folder
-aar-search -p "AAR*" --no-download --create-shortcuts FOLDER_ID
-aar-search -p "Project Brief*" --create-shortcuts FOLDER_ID  # Search, download, and create shortcuts
+gdrive-search -p "AAR*" --no-download --create-shortcuts FOLDER_ID
+gdrive-search -p "Project Brief*" --create-shortcuts FOLDER_ID  # Search, download, and create shortcuts
 
 # Search for recently modified files
-aar-search -p "AAR*" --since 7d         # Files modified in last 7 days
-aar-search -p "Report*" --since 2024-01-01  # Files modified since specific date
-aar-search -p "Project*" --since 2w     # Last 2 weeks (also supports: 1h, 1m)
+gdrive-search -p "AAR*" --since 7d         # Files modified in last 7 days
+gdrive-search -p "Report*" --since 2024-01-01  # Files modified since specific date
+gdrive-search -p "Project*" --since 2w     # Last 2 weeks (also supports: 1h, 1m)
 
 # Analyze markdown documents and generate reports
-aar-analyze -i markdown -o reports
+gdrive-analyze -i markdown -o reports
 
 # Extract specific data from documents
-aar-extract-data
+gdrive-extract-data
 
 # Management utilities
-aar-manage status
-aar-manage init-config
+gdrive-manage status
+gdrive-manage init-config
 ```
 
 ## Architecture
 
 ### Core Components
 
-1. **Downloader Module** (`src/givingtuesday_aar/downloader/`)
+1. **Downloader Module** (`src/gdrive_download/downloader/`)
    - `GoogleDriveDownloader`: Handles OAuth authentication and downloads files from Google Drive
    - `GoogleDriveSearcher`: Search for files by pattern across personal and shared drives
    - `FileConverter`: Converts Word documents to markdown using mammoth + markdownify
    - `FileRelationshipTracker`: Tracks relationships between Google Drive URLs, downloaded files, and converted markdown
 
-2. **Analyzer Module** (`src/givingtuesday_aar/analyzer/`)
+2. **Analyzer Module** (`src/gdrive_download/analyzer/`)
    - `AARAnalyzer`: Main analysis engine that identifies patterns in challenges and successes
    - `PatternMatcher`: Uses regex patterns to categorize content
    - `ReportGenerator`: Creates markdown reports with citations back to source documents
 
-3. **CLI Module** (`src/givingtuesday_aar/cli/`)
+3. **CLI Module** (`src/gdrive_download/cli/`)
    - Four separate CLI commands with Click framework
    - Rich console output for better user experience
 
-4. **Configuration** (`src/givingtuesday_aar/config.py`)
+4. **Configuration** (`src/gdrive_download/config.py`)
    - Pydantic models for type-safe configuration
    - YAML configuration file support (`aar_config.yaml`)
    - Configurable regex patterns for analysis

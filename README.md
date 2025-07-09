@@ -1,6 +1,6 @@
-# GivingTuesday AAR Tools
+# Google Drive Download Tools
 
-A modular Python package for downloading, converting, and analyzing After Action Review (AAR) documents from Google Drive. This tool helps organizations systematically analyze their post-event reviews to identify patterns, challenges, and successes across multiple operations.
+A modular Python package for downloading and converting documents from Google Drive to markdown format. The core functionality focuses on Google Drive document downloading and conversion, with additional analysis capabilities for After Action Review (AAR) documents.
 
 ## Features
 
@@ -9,7 +9,7 @@ A modular Python package for downloading, converting, and analyzing After Action
 - **Pattern Analysis**: Identify recurring themes in challenges and successes using configurable regex patterns
 - **Relationship Tracking**: Maintain links between original Google Drive URLs, downloaded files, and converted markdown
 - **Report Generation**: Create comprehensive markdown reports with direct citations to source documents
-- **CLI Interface**: Three command-line tools for streamlined workflows
+- **CLI Interface**: Five command-line tools for streamlined workflows
 - **Extensible**: Modular architecture allows for custom analysis patterns and workflows
 
 ## Installation
@@ -50,21 +50,21 @@ pip install -e ".[dev]"
 
 ```bash
 # Download and convert documents
-aar-download --folder-url "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" \
+gdrive-download --folder-url "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" \
              --credentials credentials.json
 
 # Analyze and generate reports
-aar-analyze --input-dir markdown --output-dir reports
+gdrive-analyze --input-dir markdown --output-dir reports
 
 # Check status
-aar-manage status
+gdrive-manage status
 ```
 
 ### 3. Python API
 
 ```python
-from givingtuesday_aar import GoogleDriveDownloader, AARAnalyzer
-from givingtuesday_aar.config import GlobalConfig
+from gdrive_download import GoogleDriveDownloader, AARAnalyzer
+from gdrive_download.config import GlobalConfig
 
 # Setup configuration
 config = GlobalConfig()
@@ -99,12 +99,12 @@ The analyzer module processes converted documents to identify patterns and gener
 
 ## Command Line Tools
 
-### `aar-download` - Download and Convert
+### `gdrive-download` - Download and Convert
 
 Downloads documents from Google Drive and converts them to markdown.
 
 ```bash
-aar-download [OPTIONS]
+gdrive-download [OPTIONS]
 
 Options:
   -u, --folder-url TEXT     Google Drive folder URL (required)
@@ -119,18 +119,18 @@ Options:
 
 **Example:**
 ```bash
-aar-download -u "https://drive.google.com/drive/folders/1UuS4Q2z1nsFI-eEy5K4TLx6qoJvzHrAK" \
+gdrive-download -u "https://drive.google.com/drive/folders/1UuS4Q2z1nsFI-eEy5K4TLx6qoJvzHrAK" \
              -c credentials.json \
              -o downloads \
              -m markdown
 ```
 
-### `aar-analyze` - Generate Analysis Reports
+### `gdrive-analyze` - Generate Analysis Reports
 
 Analyzes markdown documents and generates comprehensive reports.
 
 ```bash
-aar-analyze [OPTIONS]
+gdrive-analyze [OPTIONS]
 
 Options:
   -i, --input-dir TEXT      Directory with markdown files [default: markdown]
@@ -144,18 +144,18 @@ Options:
 
 **Example:**
 ```bash
-aar-analyze -i markdown \
+gdrive-analyze -i markdown \
             -o reports \
             -t all \
             --url-mappings file_relationships.csv
 ```
 
-### `aar-search` - Search Google Drive
+### `gdrive-search` - Search Google Drive
 
 Search for files by pattern across Google Drive and optionally download them.
 
 ```bash
-aar-search [OPTIONS]
+gdrive-search [OPTIONS]
 
 Options:
   -p, --pattern TEXT        File name pattern (required, supports wildcards)
@@ -174,21 +174,21 @@ Options:
 **Examples:**
 ```bash
 # Search for AAR documents
-aar-search -p "AAR*"
+gdrive-search -p "AAR*"
 
 # Search and create shortcuts without downloading
-aar-search -p "Project Brief*" --no-download --create-shortcuts FOLDER_ID
+gdrive-search -p "Project Brief*" --no-download --create-shortcuts FOLDER_ID
 
 # Search for recent files (last 7 days)
-aar-search -p "Report*" --since 7d
+gdrive-search -p "Report*" --since 7d
 ```
 
-### `aar-manage` - Management Utilities
+### `gdrive-manage` - Management Utilities
 
 Collection of utilities for managing AAR workflows.
 
 ```bash
-aar-manage [COMMAND] [OPTIONS]
+gdrive-manage [COMMAND] [OPTIONS]
 
 Commands:
   init-config              Initialize configuration file
@@ -201,13 +201,13 @@ Commands:
 **Examples:**
 ```bash
 # Initialize configuration
-aar-manage init-config
+gdrive-manage init-config
 
 # Check status
-aar-manage status --downloads-dir downloads --markdown-dir markdown
+gdrive-manage status --downloads-dir downloads --markdown-dir markdown
 
 # Update report URLs
-aar-manage update-urls old_report.md url_mappings.json
+gdrive-manage update-urls old_report.md url_mappings.json
 ```
 
 ## Configuration
@@ -262,8 +262,8 @@ The tool identifies themes using configurable regex patterns:
 ## Project Structure
 
 ```
-refactor/
-├── src/givingtuesday_aar/          # Main package
+gdrive-download/
+├── src/gdrive_download/          # Main package
 │   ├── __init__.py
 │   ├── config.py                   # Configuration management
 │   ├── downloader/                 # Google Drive downloading
@@ -346,7 +346,7 @@ All reports include direct citations linking back to original Google Drive docum
 pytest
 
 # Run with coverage
-pytest --cov=src/givingtuesday_aar --cov-report=html
+pytest --cov=src/gdrive_download --cov-report=html
 
 # Run specific test file
 pytest tests/test_config.py
@@ -399,7 +399,7 @@ pre-commit run --all-files
 
 ### Getting Help
 
-- **Issues**: Report bugs at [GitHub Issues](https://github.com/givingtuesday/aar-tools/issues)
+- **Issues**: Report bugs at [GitHub Issues](https://github.com/givingtuesday/gdrive-download/issues)
 - **Documentation**: Full documentation at [docs.example.com](https://docs.example.com)
 - **Support**: Contact the development team
 
