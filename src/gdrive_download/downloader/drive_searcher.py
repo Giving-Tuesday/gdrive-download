@@ -27,7 +27,7 @@ class GoogleDriveSearcher:
         """
         if isinstance(credentials, (Path, str)):
             # Create a minimal config to initialize downloader for auth
-            from givingtuesday_aar.config import DownloaderConfig
+            from gdrive_download.config import DownloaderConfig
             config = DownloaderConfig(
                 credentials_file=Path(credentials),
                 token_file=Path("token.pickle")

@@ -35,7 +35,7 @@ This module handles all interactions with Google Drive for downloading and conve
 ## Usage
 
 ```python
-from givingtuesday_aar.downloader import GoogleDriveDownloader, GoogleDriveSearcher
+from gdrive_download.downloader import GoogleDriveDownloader, GoogleDriveSearcher
 
 # Download files
 downloader = GoogleDriveDownloader(config)
@@ -43,5 +43,5 @@ results = downloader.download_folder("https://drive.google.com/drive/folders/...
 
 # Search files
 searcher = GoogleDriveSearcher(config)
-files = searcher.search_files(pattern="AAR*", drive_scope="all")
+files = searcher.search_files(pattern="*", drive_scope="all")
 ```

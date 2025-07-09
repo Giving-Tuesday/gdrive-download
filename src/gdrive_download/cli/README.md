@@ -1,18 +1,18 @@
 # CLI Module
 
-Command-line interfaces for the GivingTuesday AAR Tools package.
+Command-line interfaces for the Google Drive Download package.
 
 ## Commands
 
 ### download.py
-- **aar-download**: Download and convert Google Drive documents
+- **gdrive-download**: Download and convert Google Drive documents
   - Downloads from Google Drive folders
   - Converts Word documents to markdown
   - Tracks file relationships
   - Supports batch processing
 
 ### search.py
-- **aar-search**: Search Google Drive by file patterns
+- **gdrive-search**: Search Google Drive by file patterns
   - Pattern-based search across drives
   - Wildcard and regex support
   - Date filtering for recent files
@@ -20,20 +20,20 @@ Command-line interfaces for the GivingTuesday AAR Tools package.
   - Shortcut creation for organizing results
 
 ### analyze.py
-- **aar-analyze**: Analyze documents and generate reports
+- **gdrive-analyze**: Analyze documents and generate reports
   - Processes markdown documents
   - Identifies patterns and themes
   - Generates multiple report types
   - Exports analysis data
 
 ### extract_data.py
-- **aar-extract-data**: Extract specific data from documents
+- **gdrive-extract-data**: Extract specific data from documents
   - Section extraction from templated documents
   - JSON transformation of document content
   - Batch processing capabilities
 
 ### manage.py
-- **aar-manage**: Management and utility commands
+- **gdrive-manage**: Management and utility commands
   - Initialize configuration files
   - Check system status
   - Update file relationships
@@ -51,14 +51,14 @@ All CLI commands support:
 
 ```bash
 # Download documents
-aar-download -u "https://drive.google.com/drive/folders/..." -c credentials.json
+gdrive-download -u "https://drive.google.com/drive/folders/..." -c credentials.json
 
 # Search for files
-aar-search -p "AAR*" --since 7d
+gdrive-search -p "*" --since 7d
 
 # Analyze and report
-aar-analyze -i markdown -o reports
+gdrive-analyze -i markdown -o reports
 
 # Check status
-aar-manage status
+gdrive-manage status
 ```

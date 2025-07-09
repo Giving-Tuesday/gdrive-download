@@ -8,8 +8,8 @@ import click
 from rich.console import Console
 from rich.prompt import Confirm
 
-from givingtuesday_aar.config import GlobalConfig
-from givingtuesday_aar.downloader import GoogleDriveSearcher, GoogleDriveDownloader, FileConverter
+from gdrive_download.config import GlobalConfig
+from gdrive_download.downloader import GoogleDriveSearcher, GoogleDriveDownloader, FileConverter
 
 console = Console()
 

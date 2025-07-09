@@ -1,6 +1,6 @@
 # Utils Module
 
-Utility functions and helpers used throughout the GivingTuesday AAR Tools package.
+Utility functions and helpers used throughout the Google Drive Download package.
 
 ## Components
 
@@ -30,7 +30,7 @@ Utility functions and helpers used throughout the GivingTuesday AAR Tools packag
 ## Usage
 
 ```python
-from givingtuesday_aar.utils import setup_logging, ensure_directory
+from gdrive_download.utils import setup_logging, ensure_directory
 
 # Setup logging
 logger = setup_logging(log_level="INFO")

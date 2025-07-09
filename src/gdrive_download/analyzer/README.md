@@ -1,11 +1,11 @@
 # Analyzer Module
 
-This module processes markdown documents to extract patterns, themes, and insights from After Action Reviews.
+This module processes markdown documents to extract patterns, themes, and insights from documents.
 
 ## Components
 
 ### aar_analyzer.py
-- **AARAnalyzer**: Main analysis engine
+- **DocumentAnalyzer**: Main analysis engine
   - Analyzes challenges and successes across multiple documents
   - Aggregates findings by theme
   - Generates comprehensive insights
@@ -21,7 +21,7 @@ This module processes markdown documents to extract patterns, themes, and insigh
 ### pattern_matcher.py
 - **PatternMatcher**: Theme identification engine
   - Configurable regex patterns for categorization
-  - Pre-defined patterns for common AAR themes
+  - Pre-defined patterns for common document themes
   - Match context extraction with surrounding text
   - Support for custom pattern definitions
 
@@ -35,10 +35,10 @@ This module processes markdown documents to extract patterns, themes, and insigh
 ## Usage
 
 ```python
-from givingtuesday_aar.analyzer import AARAnalyzer
+from gdrive_download.analyzer import DocumentAnalyzer
 
 # Analyze documents
-analyzer = AARAnalyzer(config)
+analyzer = DocumentAnalyzer(config)
 challenges = analyzer.analyze_challenges()
 successes = analyzer.analyze_successes()
 

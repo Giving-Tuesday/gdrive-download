@@ -1,11 +1,11 @@
-# GivingTuesday AAR Package
+# Google Drive Download Package
 
-Core Python package for downloading, converting, and analyzing After Action Review documents.
+Core Python package for downloading, converting, and analyzing documents from Google Drive.
 
 ## Package Structure
 
 ```
-givingtuesday_aar/
+gdrive_download/
 ├── __init__.py          # Package initialization and exports
 ├── config.py            # Configuration management with Pydantic
 ├── downloader/          # Google Drive operations
@@ -31,26 +31,26 @@ pip install -e .
 ## Quick Start
 
 ```python
-from givingtuesday_aar import GoogleDriveDownloader, AARAnalyzer
-from givingtuesday_aar.config import GlobalConfig
+from gdrive_download import GoogleDriveDownloader, DocumentAnalyzer
+from gdrive_download.config import GlobalConfig
 
 # Load configuration
-config = GlobalConfig.from_yaml("aar_config.yaml")
+config = GlobalConfig.from_yaml("gdrive_config.yaml")
 
 # Download documents
 downloader = GoogleDriveDownloader(config.downloader)
 files = downloader.download_folder(folder_url)
 
 # Analyze content
-analyzer = AARAnalyzer(config.analyzer)
+analyzer = DocumentAnalyzer(config.analyzer)
 analyzer.analyze_all()
 analyzer.generate_reports()
 ```
 
 ## Environment Variables
 
-- `AAR_CONFIG_FILE`: Default configuration file path
-- `AAR_LOG_LEVEL`: Default logging level
+- `GDRIVE_CONFIG_FILE`: Default configuration file path
+- `GDRIVE_LOG_LEVEL`: Default logging level
 - `GOOGLE_APPLICATION_CREDENTIALS`: Google API credentials path
 
 ## See Also

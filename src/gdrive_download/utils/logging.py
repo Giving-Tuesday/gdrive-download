@@ -15,7 +15,7 @@ def setup_logging(
     """Set up logging with rich formatting."""
     
     # Create logger
-    logger = logging.getLogger("givingtuesday_aar")
+    logger = logging.getLogger("gdrive_download")
     logger.setLevel(getattr(logging, level.upper()))
     
     # Clear existing handlers
