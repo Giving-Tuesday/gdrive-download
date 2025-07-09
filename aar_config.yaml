@@ -1,0 +1,47 @@
+# GivingTuesday AAR Tools Configuration
+# 
+# This file contains default configuration for the AAR analysis tools.
+# Customize these settings based on your specific needs.
+
+# Downloader configuration
+downloader:
+  # Directory to save downloaded files from Google Drive
+  output_dir: downloads
+  
+  # Google API credentials file (optional - can be set via CLI)
+  # credentials_file: credentials.json
+  
+  # OAuth token storage file (optional)
+  # token_file: token.pickle
+  
+  # Number of concurrent downloads
+  batch_size: 10
+
+# Analyzer configuration  
+analyzer:
+  # Directory containing markdown files to analyze
+  input_dir: markdown
+  
+  # Directory to save analysis reports
+  output_dir: reports
+  
+  # Patterns for identifying challenge categories
+  challenge_patterns:
+    resource_constraints: "(?i)(resource|staff|capacity|time|budget|money|funding)"
+    data_collection: "(?i)(data|metric|measurement|tracking|report|survey)"
+    communication: "(?i)(communication|coordination|messaging|coverage|press)"
+    partnership: "(?i)(partner|collaboration|relationship|stakeholder)"
+    timing_scope: "(?i)(timeline|scope|planning|expectation|deadline)"
+  
+  # Patterns for identifying success categories
+  success_patterns:
+    leadership: "(?i)(leader|development|empowerment|capacity|growth)"
+    content: "(?i)(content|engagement|quality|storytelling|media)"
+    agility: "(?i)(agility|opportunity|adaptive|innovation|strategic)"
+    data_excellence: "(?i)(measurement|research|data|analysis|insight)"
+    partnerships: "(?i)(partnership|collaboration|relationship|network)"
+    community: "(?i)(community|engagement|mobilization|participation)"
+
+# Global configuration
+working_dir: .
+log_level: INFO
