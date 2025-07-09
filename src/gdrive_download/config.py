@@ -1,4 +1,4 @@
-"""Configuration management for AAR tools."""
+"""Configuration management for gdrive-download tools."""
 
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -18,42 +18,13 @@ class DownloaderConfig(BaseModel):
         arbitrary_types_allowed = True
 
 
-class AnalyzerConfig(BaseModel):
-    """Configuration for AAR analyzer."""
-    
-    input_dir: Path = Field(default=Path("markdown"), description="Directory containing markdown files")
-    output_dir: Path = Field(default=Path("reports"), description="Directory to save analysis reports")
-    challenge_patterns: Dict[str, str] = Field(
-        default_factory=lambda: {
-            "resource_constraints": r"(?i)(resource|staff|capacity|time|budget|money|funding)",
-            "data_collection": r"(?i)(data|metric|measurement|tracking|report|survey)",
-            "communication": r"(?i)(communication|coordination|messaging|coverage|press)",
-            "partnership": r"(?i)(partner|collaboration|relationship|stakeholder)",
-            "timing_scope": r"(?i)(timeline|scope|planning|expectation|deadline)"
-        },
-        description="Regex patterns for identifying challenge categories"
-    )
-    success_patterns: Dict[str, str] = Field(
-        default_factory=lambda: {
-            "leadership": r"(?i)(leader|development|empowerment|capacity|growth)",
-            "content": r"(?i)(content|engagement|quality|storytelling|media)",
-            "agility": r"(?i)(agility|opportunity|adaptive|innovation|strategic)",
-            "data_excellence": r"(?i)(measurement|research|data|analysis|insight)",
-            "partnerships": r"(?i)(partnership|collaboration|relationship|network)",
-            "community": r"(?i)(community|engagement|mobilization|participation)"
-        },
-        description="Regex patterns for identifying success categories"
-    )
-    
-    class Config:
-        arbitrary_types_allowed = True
+# Analyzer configuration moved to document_analyzer package
 
 
 class GlobalConfig(BaseModel):
-    """Global configuration for AAR tools."""
+    """Global configuration for gdrive-download tools."""
     
     downloader: DownloaderConfig = Field(default_factory=DownloaderConfig)
-    analyzer: AnalyzerConfig = Field(default_factory=AnalyzerConfig)
     working_dir: Path = Field(default=Path.cwd(), description="Base working directory")
     log_level: str = Field(default="INFO", description="Logging level")
     
@@ -75,13 +46,16 @@ class GlobalConfig(BaseModel):
         """Save configuration to YAML file."""
         config_path.parent.mkdir(parents=True, exist_ok=True)
         
+        # Convert Path objects to strings for YAML serialization
+        data = self.model_dump(mode='json')
+        
         with open(config_path, 'w') as f:
-            yaml.dump(self.dict(), f, default_flow_style=False)
+            yaml.dump(data, f, default_flow_style=False)
 
 
 def get_config(config_path: Optional[Path] = None) -> GlobalConfig:
     """Get configuration from file or defaults."""
     if config_path is None:
-        config_path = Path.cwd() / "aar_config.yaml"
+        config_path = Path.cwd() / "gdrive_config.yaml"
     
     return GlobalConfig.from_yaml(config_path)

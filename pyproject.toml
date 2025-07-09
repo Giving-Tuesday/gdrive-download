@@ -60,8 +60,6 @@ Homepage = "https://github.com/givingtuesday/gdrive-download"
 
 [project.scripts]
 gdrive-download = "gdrive_download.cli.download:main"
-gdrive-analyze = "gdrive_download.cli.analyze:main"
-gdrive-extract-data = "gdrive_download.cli.extract_data:main"
 gdrive-manage = "gdrive_download.cli.manage:main"
 gdrive-search = "gdrive_download.cli.search:search"
 
@@ -87,4 +85,4 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "--cov=src/gdrive_download --cov-report=html --cov-report=term"
+addopts = "--cov=src/gdrive_download --cov=src/document_analyzer --cov-report=html --cov-report=term"

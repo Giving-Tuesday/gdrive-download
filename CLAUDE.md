@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Python package called `gdrive-download` that downloads and converts documents from Google Drive to markdown format. The core function is Google Drive document downloading and conversion, with additional analysis capabilities for After Action Review (AAR) documents. The system is modular with separate components for downloading, conversion, analysis, and reporting.
+This repository contains two main Python packages:
+
+1. **`gdrive-download`** - Core Google Drive document downloading and conversion tool
+2. **`document-analyzer`** - Generic document analysis framework with template-based architecture
+
+The system is designed with clear separation of concerns: `gdrive-download` focuses purely on downloading and converting documents from Google Drive to markdown, while `document-analyzer` provides extensible analysis capabilities for structured documents. AAR (After Action Review) analysis is provided as the primary template, but the framework supports any document type.
 
 ## Core Commands
 
@@ -32,7 +37,8 @@ uv run pre-commit run --all-files  # Run all pre-commit hooks
 ```
 
 ### CLI Tools
-The package provides 5 command-line tools:
+
+#### gdrive-download Package
 ```bash
 # Download and convert documents from Google Drive
 gdrive-download -u "https://drive.google.com/drive/folders/FOLDER_ID" -c credentials.json
@@ -51,20 +57,28 @@ gdrive-search -p "AAR*" --since 7d         # Files modified in last 7 days
 gdrive-search -p "Report*" --since 2024-01-01  # Files modified since specific date
 gdrive-search -p "Project*" --since 2w     # Last 2 weeks (also supports: 1h, 1m)
 
-# Analyze markdown documents and generate reports
-gdrive-analyze -i markdown -o reports
-
-# Extract specific data from documents
-gdrive-extract-data
-
 # Management utilities
 gdrive-manage status
 gdrive-manage init-config
 ```
 
+#### document-analyzer Package (Future CLI)
+```bash
+# Analyze documents using templates
+doc-analyze --template aar --input markdown_docs/ --output reports/
+
+# List available templates
+doc-analyze --list-templates
+
+# Generate analysis reports
+doc-report --template aar --format markdown --input analysis_results.json
+```
+
 ## Architecture
 
-### Core Components
+### gdrive-download Package
+
+**Core Components:**
 
 1. **Downloader Module** (`src/gdrive_download/downloader/`)
    - `GoogleDriveDownloader`: Handles OAuth authentication and downloads files from Google Drive
@@ -72,52 +86,96 @@ gdrive-manage init-config
    - `FileConverter`: Converts Word documents to markdown using mammoth + markdownify
    - `FileRelationshipTracker`: Tracks relationships between Google Drive URLs, downloaded files, and converted markdown
 
-2. **Analyzer Module** (`src/gdrive_download/analyzer/`)
-   - `AARAnalyzer`: Main analysis engine that identifies patterns in challenges and successes
-   - `PatternMatcher`: Uses regex patterns to categorize content
-   - `ReportGenerator`: Creates markdown reports with citations back to source documents
-
-3. **CLI Module** (`src/gdrive_download/cli/`)
-   - Four separate CLI commands with Click framework
+2. **CLI Module** (`src/gdrive_download/cli/`)
+   - Multiple CLI commands with Click framework
    - Rich console output for better user experience
 
-4. **Configuration** (`src/gdrive_download/config.py`)
+3. **Configuration** (`src/gdrive_download/config.py`)
    - Pydantic models for type-safe configuration
-   - YAML configuration file support (`aar_config.yaml`)
-   - Configurable regex patterns for analysis
+   - YAML configuration file support
+
+### document-analyzer Package
+
+**Core Components:**
+
+1. **Templates Module** (`src/document_analyzer/templates/`)
+   - `DocumentTemplate`: Abstract base class for all analysis templates
+   - `AarTemplate`: Concrete implementation for After Action Review documents
+   - Template loading and discovery utilities
+
+2. **Core Analysis Framework** (`src/document_analyzer/core/`)
+   - `DocumentAnalyzer`: Main analysis orchestrator that coordinates the analysis process
+   - `PatternMatcher`: Advanced pattern matching with regex, context extraction, and deduplication
+   - `ReportGenerator`: Multi-format report generation (Markdown, HTML, JSON)
+
+3. **Template System Architecture:**
+   - Templates define document structure, analysis patterns, and processing logic
+   - Extensible design allows easy addition of new document types
+   - AAR template provides patterns for challenges, successes, lessons, and recommendations
 
 ### Data Flow
 
+#### gdrive-download Workflow
 1. **Download**: Google Drive folder URL → downloaded .docx files in `downloads/`
 2. **Convert**: .docx files → markdown files in `markdown/`
 3. **Track**: Relationships stored in `file_relationships.csv`
-4. **Analyze**: Markdown files → pattern analysis using configurable regex
-5. **Report**: Analysis results → markdown reports in `reports/`
+
+#### document-analyzer Workflow
+1. **Load Template**: Choose analysis template (e.g., AAR)
+2. **Preprocess**: Normalize document structure and headers
+3. **Extract Sections**: Identify document sections based on template
+4. **Pattern Matching**: Apply regex patterns to find relevant content
+5. **Theme Extraction**: Analyze pattern frequencies and extract key themes
+6. **Report Generation**: Create comprehensive analysis reports
 
 ### Key Configuration
 
-- Analysis patterns are fully configurable in `aar_config.yaml`
-- Default patterns categorize challenges (resource constraints, data collection, communication, etc.) and successes (leadership, content, agility, etc.)
+#### gdrive-download
 - Google Drive authentication uses OAuth2 with `credentials.json` and `token.pickle`
+- File conversion settings configurable via YAML
+
+#### document-analyzer
+- Templates define analysis patterns, section headers, and report structure
+- AAR template patterns categorize challenges (resource constraints, communication, etc.) and successes (leadership, partnerships, etc.)
+- Pattern matching uses case-insensitive regex with context extraction
+- Report formats include Markdown, HTML, and JSON
 
 ### Testing
 
-- Test suite in `tests/` directory
+- Comprehensive test suite in `tests/` directory
 - Uses pytest with coverage reporting
-- Tests cover all major components including CLI, downloader, analyzer, and configuration
+- **gdrive-download tests**: CLI, downloader, converter, and configuration components
+- **document-analyzer tests**: Template system, core analysis framework, pattern matching, and report generation
+- **Integration tests**: End-to-end document analysis workflows
 
 ## Important Files
 
+### gdrive-download Package
 - `pyproject.toml`: Package configuration, dependencies, and tool settings
-- `aar_config.yaml`: Runtime configuration for analysis patterns and directories
 - `credentials.json`: Google Drive API credentials (not in repo)
 - `token.pickle`: OAuth token storage (not in repo)
 - `file_relationships.csv`: Mapping between Google Drive URLs and local files
 
+### document-analyzer Package
+- Templates in `src/document_analyzer/templates/` define analysis behavior
+- Core framework in `src/document_analyzer/core/` provides analysis engine
+- Comprehensive test suite in `tests/document_analyzer/`
+
 ## Working with the Codebase
 
-- The package uses modern Python practices with type hints and Pydantic models
+### Development Practices
+- Both packages use modern Python practices with type hints and Pydantic models
 - Configuration is centralized and type-safe
 - All file paths use `pathlib.Path` objects
 - Rich console library provides enhanced CLI output
-- Pattern matching uses regex for flexibility while maintaining readability through configuration
+
+### Package Architecture
+- **gdrive-download**: Focused on Google Drive integration and document conversion
+- **document-analyzer**: Generic framework with template-based extensibility
+- Clear separation of concerns enables independent development and testing
+
+### Extending the System
+- **New document types**: Create new templates by extending `DocumentTemplate`
+- **New analysis patterns**: Add regex patterns to existing templates
+- **New report formats**: Extend `ReportGenerator` with additional output formats
+- **Integration**: Use both packages together or independently as needed

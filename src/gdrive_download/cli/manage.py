@@ -34,7 +34,7 @@ def init_config(ctx):
     """Initialize a new configuration file."""
     console = ctx.obj['console']
     
-    config_path = Path('aar_config.yaml')
+    config_path = Path('gdrive_config.yaml')
     if config_path.exists():
         if not click.confirm(f"Configuration file {config_path} already exists. Overwrite?"):
             return
@@ -94,25 +94,7 @@ def status(ctx, downloads_dir, markdown_dir, url_mappings):
     console.print("\\n" + report)
 
 
-@main.command()
-@click.argument('old_report_path', type=click.Path(exists=True))
-@click.argument('url_mappings_path', type=click.Path(exists=True))
-@click.pass_context
-def update_urls(ctx, old_report_path, url_mappings_path):
-    """Update URLs in an existing report with new mappings."""
-    console = ctx.obj['console']
-    
-    # Load URL mappings
-    with open(url_mappings_path, 'r') as f:
-        url_mappings = json.load(f)
-    
-    from ..analyzer import ReportGenerator
-    report_gen = ReportGenerator(Path('.'))
-    
-    report_path = Path(old_report_path)
-    report_gen.update_report_urls(report_path, url_mappings)
-    
-    console.print(f"[green]Updated URLs in {report_path}[/green]")
+# URL update functionality moved to document_analyzer package
 
 
 @main.command()
