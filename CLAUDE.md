@@ -106,7 +106,7 @@ doc-report --template aar --format markdown --input analysis_results.json
 2. **Core Analysis Framework** (`src/document_analyzer/core/`)
    - `DocumentAnalyzer`: Main analysis orchestrator that coordinates the analysis process
    - `PatternMatcher`: Advanced pattern matching with regex, context extraction, and deduplication
-   - `ReportGenerator`: Multi-format report generation (Markdown, HTML, JSON)
+   - Template-based analysis framework for extensible document analysis
 
 3. **Template System Architecture:**
    - Templates define document structure, analysis patterns, and processing logic
@@ -177,5 +177,5 @@ doc-report --template aar --format markdown --input analysis_results.json
 ### Extending the System
 - **New document types**: Create new templates by extending `DocumentTemplate`
 - **New analysis patterns**: Add regex patterns to existing templates
-- **New report formats**: Extend `ReportGenerator` with additional output formats
+- **New export formats**: Extend pattern matcher with additional export formats
 - **Integration**: Use both packages together or independently as needed

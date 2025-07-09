@@ -103,6 +103,13 @@ def search(
 ):
     """Search for files in Google Drive by name pattern and optionally download them.
     
+    Creates a standardized directory structure:
+    <base_dir>/
+    ├── documents/              # Downloaded files
+    ├── markdown/               # Converted markdown files
+    ├── search_results.csv      # Search metadata
+    └── search_summary.md       # Search summary
+    
     Examples:
     
     \b
@@ -152,12 +159,14 @@ def search(
     else:
         base_dir = Path(f"search_{sanitize_pattern_for_dir(pattern)}")
     
-    config.downloader.output_dir = base_dir / "downloads"
+    # Use consistent directory structure
+    documents_dir = base_dir / "documents"
     markdown_dir = base_dir / "markdown"
+    config.downloader.output_dir = documents_dir
     
     # Create directories if downloading
     if download:
-        for dir_path in [base_dir, config.downloader.output_dir, markdown_dir]:
+        for dir_path in [base_dir, documents_dir, markdown_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
     
     console.print(f"[bold blue]🔍 Searching Google Drive[/bold blue]")
@@ -276,7 +285,7 @@ def search(
             console.print(f"\n[bold blue]🔄 Converting to markdown...[/bold blue]")
             
             converter = FileConverter(
-                input_dir=config.downloader.output_dir,
+                input_dir=documents_dir,
                 output_dir=markdown_dir
             )
             

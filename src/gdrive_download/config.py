@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 class DownloaderConfig(BaseModel):
     """Configuration for Google Drive downloader."""
     
-    output_dir: Path = Field(default=Path("downloads"), description="Directory to save downloaded files")
+    output_dir: Path = Field(default=Path("documents"), description="Directory to save downloaded files (relative to base directory)")
     credentials_file: Optional[Path] = Field(default=None, description="Google API credentials file")
     token_file: Optional[Path] = Field(default=None, description="OAuth token storage file")
     batch_size: int = Field(default=10, description="Number of concurrent downloads")

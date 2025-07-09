@@ -11,15 +11,23 @@ from ..utils import setup_logging
 
 @click.command()
 @click.option('--folder-url', '-u', required=True, help='Google Drive folder URL to download from')
-@click.option('--output-dir', '-o', default='downloads', help='Output directory for downloaded files')
-@click.option('--markdown-dir', '-m', default='markdown', help='Output directory for converted markdown files')
+@click.option('--output-dir', '-o', help='Base output directory (default: folder name from URL)')
+@click.option('--documents-subdir', default='documents', help='Subdirectory for downloaded files')
+@click.option('--markdown-subdir', default='markdown', help='Subdirectory for converted markdown files')
 @click.option('--credentials', '-c', help='Path to Google API credentials file')
 @click.option('--convert/--no-convert', default=True, help='Convert downloaded files to markdown')
 @click.option('--track-relationships/--no-track', default=True, help='Track file relationships')
 @click.option('--config-file', help='Path to configuration file')
 @click.option('--log-level', default='INFO', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR']))
-def main(folder_url, output_dir, markdown_dir, credentials, convert, track_relationships, config_file, log_level):
-    """Download AAR documents from Google Drive and convert to markdown."""
+def main(folder_url, output_dir, documents_subdir, markdown_subdir, credentials, convert, track_relationships, config_file, log_level):
+    """Download documents from Google Drive and convert to markdown.
+    
+    Creates a standardized directory structure:
+    <base_dir>/
+    ├── documents/              # Downloaded files
+    ├── markdown/               # Converted markdown files
+    └── file_relationships.csv  # URL to file mappings
+    """
     
     # Setup logging
     logger = setup_logging(level=log_level)
@@ -29,8 +37,25 @@ def main(folder_url, output_dir, markdown_dir, credentials, convert, track_relat
         # Load configuration
         config = get_config(Path(config_file) if config_file else None)
         
+        # Determine base directory from folder URL if not provided
+        if output_dir:
+            base_dir = Path(output_dir)
+        else:
+            # Extract folder name from URL or use default
+            import re
+            match = re.search(r'/folders/([^/]+)', folder_url)
+            if match:
+                folder_id = match.group(1)
+                base_dir = Path(f"gdrive_folder_{folder_id[:8]}")
+            else:
+                base_dir = Path("gdrive_download")
+        
+        # Create directory structure
+        documents_dir = base_dir / documents_subdir
+        markdown_dir = base_dir / markdown_subdir
+        
         # Override with CLI arguments
-        config.downloader.output_dir = Path(output_dir)
+        config.downloader.output_dir = documents_dir
         if credentials:
             config.downloader.credentials_file = Path(credentials)
         
@@ -38,7 +63,9 @@ def main(folder_url, output_dir, markdown_dir, credentials, convert, track_relat
         downloader = GoogleDriveDownloader(config.downloader)
         
         console.print(f"[blue]Downloading from: {folder_url}[/blue]")
-        console.print(f"[blue]Output directory: {output_dir}[/blue]")
+        console.print(f"[blue]Base directory: {base_dir}[/blue]")
+        console.print(f"[blue]Documents: {documents_dir}[/blue]")
+        console.print(f"[blue]Markdown: {markdown_dir}[/blue]")
         
         # Download files
         results = downloader.download_folder(folder_url)
@@ -52,7 +79,7 @@ def main(folder_url, output_dir, markdown_dir, credentials, convert, track_relat
             
             converter = FileConverter(
                 input_dir=config.downloader.output_dir,
-                output_dir=Path(markdown_dir)
+                output_dir=markdown_dir
             )
             
             converted_files = converter.convert_all_files()
@@ -67,13 +94,13 @@ def main(folder_url, output_dir, markdown_dir, credentials, convert, track_relat
             
             tracker = FileRelationshipTracker(
                 downloads_dir=config.downloader.output_dir,
-                markdown_dir=Path(markdown_dir)
+                markdown_dir=markdown_dir
             )
             
             relationships = tracker.scan_file_relationships(url_mappings)
             
-            # Save relationships
-            csv_path = Path('file_relationships.csv')
+            # Save relationships in base directory
+            csv_path = base_dir / 'file_relationships.csv'
             tracker.save_relationships_csv(relationships, csv_path)
             
             # Generate report

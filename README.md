@@ -1,31 +1,35 @@
-# Google Drive Download Tools
+# Google Drive Downloading and Analysis Package
 
-A modular Python package for downloading and converting documents from Google Drive to markdown format. The core functionality focuses on Google Drive document downloading and conversion, with additional analysis capabilities for After Action Review (AAR) documents.
+This project contains two Python packages, one for bulk downloading & conversion of google docs, and a second with preliminary analysis tools for the same.  
 
-## Features
+## Google Drive Download Tools
+
+A focused Python package for downloading and converting documents from Google Drive to markdown format. This package handles Google Drive integration, document downloading, and conversion to markdown. For document analysis capabilities, see the companion `document-analyzer` package.
+
+### Features
 
 - **Google Drive Integration**: Download documents from shared Google Drive folders with full authentication support
 - **Document Conversion**: Convert Word documents (.docx) to markdown using high-quality mammoth + markdownify pipeline
-- **Pattern Analysis**: Identify recurring themes in challenges and successes using configurable regex patterns
+- **Search Capabilities**: Search for files by pattern across personal and shared drives
 - **Relationship Tracking**: Maintain links between original Google Drive URLs, downloaded files, and converted markdown
-- **Report Generation**: Create comprehensive markdown reports with direct citations to source documents
-- **CLI Interface**: Five command-line tools for streamlined workflows
-- **Extensible**: Modular architecture allows for custom analysis patterns and workflows
+- **CLI Interface**: Three command-line tools for streamlined workflows
+- **Standardized Structure**: Creates consistent project directory structure for easy organization
+- **Incremental Updates**: Smart downloading to avoid re-processing existing files
 
-## Installation
+### Installation
 
-### Prerequisites
+#### Prerequisites
 
 - Python 3.8 or higher
 - Google Drive API credentials (see [Setup Guide](#google-drive-setup))
 
-### Install from Source
+#### Install from Source
 
 ```bash
-# Clone and navigate to the refactor directory
+## Clone and navigate to the refactor directory
 cd refactor/
 
-# Create virtual environment (recommended)
+## Create virtual environment (recommended)
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
@@ -36,9 +40,9 @@ pip install -e .
 pip install -e ".[dev]"
 ```
 
-## Quick Start
+### Quick Start
 
-### 1. Google Drive Setup
+#### 1. Google Drive Setup
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
@@ -46,42 +50,45 @@ pip install -e ".[dev]"
 4. Create credentials (OAuth 2.0 Client ID)
 5. Download the credentials file as `credentials.json`
 
-### 2. Basic Usage
+#### 2. Basic Usage
 
 ```bash
-# Download and convert documents
+# Download and convert documents from a folder
 gdrive-download --folder-url "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" \
              --credentials credentials.json
 
-# Analyze and generate reports
-gdrive-analyze --input-dir markdown --output-dir reports
+# Search for documents by pattern
+gdrive-search --pattern "AAR*" --credentials credentials.json
 
 # Check status
 gdrive-manage status
 ```
 
-### 3. Python API
+#### 3. Python API
 
 ```python
-from gdrive_download import GoogleDriveDownloader, AARAnalyzer
+from gdrive_download import GoogleDriveDownloader, GoogleDriveSearcher, FileConverter
 from gdrive_download.config import GlobalConfig
 
 # Setup configuration
 config = GlobalConfig()
 
-# Download documents
+# Download documents from folder
 downloader = GoogleDriveDownloader(config.downloader)
 results = downloader.download_folder("https://drive.google.com/drive/folders/...")
 
-# Analyze content
-analyzer = AARAnalyzer(config.analyzer)
-challenges = analyzer.analyze_challenges()
-successes = analyzer.analyze_successes()
+# Search for documents
+searcher = GoogleDriveSearcher(config.downloader)
+search_results = searcher.search_files(pattern="AAR*", drive_scope="all")
+
+# Convert documents to markdown
+converter = FileConverter(input_dir="documents", output_dir="markdown")
+converted_files = converter.convert_all_files()
 ```
 
-## Main Components
+### Main Components
 
-### Downloader Module
+#### Downloader Module
 The downloader module handles all interactions with Google Drive, including authentication, file discovery, downloading, and format conversion. Key features:
 - OAuth2 authentication with token persistence
 - Batch downloading from Google Drive folders
@@ -89,28 +96,40 @@ The downloader module handles all interactions with Google Drive, including auth
 - Document conversion to markdown format
 - Relationship tracking between Drive URLs and local files
 
-### Analyzer Module
-The analyzer module processes converted documents to identify patterns and generate insights. Key features:
-- Pattern-based content analysis using configurable regex
-- Categorization of challenges and successes
-- Multi-document theme extraction
-- Markdown report generation with citations
-- JSON data export for further analysis
+#### Standard Directory Structure
+All operations create a consistent directory structure:
+```
+project_name/
+├── documents/              # Downloaded files
+├── markdown/               # Converted markdown files
+├── file_relationships.csv  # URL to file mappings
+└── README.md               # Project overview
+```
 
-## Command Line Tools
+#### Integration with Document Analysis
+For document analysis, use the companion `document-analyzer` package:
+```python
+from document_analyzer import DocumentAnalyzer
 
-### `gdrive-download` - Download and Convert
+analyzer = DocumentAnalyzer(template="aar")
+results = analyzer.analyze_directory("project_name/markdown")
+```
 
-Downloads documents from Google Drive and converts them to markdown.
+### Command Line Tools
+
+#### `gdrive-download` - Download and Convert
+
+Downloads documents from Google Drive and converts them to markdown using the standard directory structure.
 
 ```bash
 gdrive-download [OPTIONS]
 
 Options:
   -u, --folder-url TEXT     Google Drive folder URL (required)
-  -o, --output-dir TEXT     Output directory for downloads [default: downloads]
-  -m, --markdown-dir TEXT   Output directory for markdown [default: markdown]
-  -c, --credentials TEXT    Path to Google API credentials file
+  -o, --output-dir TEXT     Base output directory (auto-generated from folder name if not specified)
+  --documents-subdir TEXT   Subdirectory for downloaded files [default: documents]
+  --markdown-subdir TEXT    Subdirectory for markdown files [default: markdown]
+  -c, --credentials TEXT    Path to Google API credentials file [default: credentials.json]
   --convert/--no-convert    Convert to markdown [default: convert]
   --track-relationships     Track file relationships [default: True]
   --config-file TEXT        Path to configuration file
@@ -121,38 +140,21 @@ Options:
 ```bash
 gdrive-download -u "https://drive.google.com/drive/folders/1UuS4Q2z1nsFI-eEy5K4TLx6qoJvzHrAK" \
              -c credentials.json \
-             -o downloads \
-             -m markdown
+             -o my_project
 ```
 
-### `gdrive-analyze` - Generate Analysis Reports
-
-Analyzes markdown documents and generates comprehensive reports.
-
-```bash
-gdrive-analyze [OPTIONS]
-
-Options:
-  -i, --input-dir TEXT      Directory with markdown files [default: markdown]
-  -o, --output-dir TEXT     Directory for reports [default: reports]
-  -t, --report-type [challenges|successes|insights|all]  [default: all]
-  --url-mappings TEXT       Path to URL mappings file
-  --save-analysis           Save detailed analysis data [default: True]
-  --config-file TEXT        Path to configuration file
-  --log-level [DEBUG|INFO|WARNING|ERROR]  [default: INFO]
+Creates structure:
+```
+my_project/
+├── documents/              # Downloaded files
+├── markdown/               # Converted markdown files
+└── file_relationships.csv  # URL mappings
 ```
 
-**Example:**
-```bash
-gdrive-analyze -i markdown \
-            -o reports \
-            -t all \
-            --url-mappings file_relationships.csv
-```
 
-### `gdrive-search` - Search Google Drive
+#### `gdrive-search` - Search Google Drive
 
-Search for files by pattern across Google Drive and optionally download them.
+Search for files by pattern across Google Drive and optionally download them using the standard directory structure.
 
 ```bash
 gdrive-search [OPTIONS]
@@ -162,7 +164,7 @@ Options:
   -s, --scope [personal|all|shared]  Drive scope [default: all]
   --shared-drive-id TEXT    Specific shared drive ID when scope is "shared"
   -t, --file-types TEXT     File types to search [default: document]
-  -o, --output-dir TEXT     Output directory
+  -o, --output-dir TEXT     Base output directory [default: search_<pattern>]
   -c, --credentials TEXT    Google API credentials file [default: credentials.json]
   --download/--no-download  Download found files [default: download]
   --convert/--no-convert    Convert to markdown [default: convert]
@@ -180,12 +182,21 @@ gdrive-search -p "AAR*"
 gdrive-search -p "Project Brief*" --no-download --create-shortcuts FOLDER_ID
 
 # Search for recent files (last 7 days)
-gdrive-search -p "Report*" --since 7d
+gdrive-search -p "Report*" --since 7d -o recent_reports
 ```
 
-### `gdrive-manage` - Management Utilities
+Creates structure:
+```
+search_AAR/  (or specified output directory)
+├── documents/              # Downloaded files
+├── markdown/               # Converted markdown files
+├── search_results.csv      # Search metadata
+└── search_summary.md       # Search summary
+```
 
-Collection of utilities for managing AAR workflows.
+#### `gdrive-manage` - Management Utilities
+
+Collection of utilities for managing document workflows.
 
 ```bash
 gdrive-manage [COMMAND] [OPTIONS]
@@ -210,54 +221,51 @@ gdrive-manage status --downloads-dir downloads --markdown-dir markdown
 gdrive-manage update-urls old_report.md url_mappings.json
 ```
 
-## Configuration
+### Configuration
 
-### Configuration File
+#### Configuration File
 
-Create `aar_config.yaml` to customize behavior:
+Create `gdrive_config.yaml` to customize behavior:
 
 ```yaml
 downloader:
-  output_dir: downloads
+  output_dir: documents
   batch_size: 10
+  credentials_file: credentials.json
+  token_file: token.pickle
   
-analyzer:
-  input_dir: markdown
-  output_dir: reports
-  challenge_patterns:
-    resource_constraints: "(?i)(resource|staff|capacity|budget)"
-    communication: "(?i)(communication|coordination|messaging)"
-  success_patterns:
-    leadership: "(?i)(leader|development|empowerment)"
-    innovation: "(?i)(innovation|creative|breakthrough)"
-    
+working_dir: .
 log_level: INFO
 ```
 
-### Environment Variables
+#### Environment Variables
 
 - `GOOGLE_APPLICATION_CREDENTIALS`: Path to Google API credentials
-- `AAR_CONFIG_FILE`: Path to configuration file
-- `AAR_LOG_LEVEL`: Default logging level
 
-## Analysis Patterns
+## Document Analysis
 
-The tool identifies themes using configurable regex patterns:
+For analyzing the downloaded documents, use the companion `document-analyzer` package:
 
-### Default Challenge Patterns
-- **Resource Constraints**: staff, capacity, budget, funding issues
-- **Data Collection**: measurement, tracking, reporting difficulties  
-- **Communication**: coordination, messaging, coverage gaps
-- **Partnership**: collaboration, stakeholder management issues
-- **Timing & Scope**: planning, timeline, expectation challenges
+```bash
+pip install -e ../document-analyzer
+```
 
-### Default Success Patterns
-- **Leadership**: development, empowerment, capacity building
-- **Content**: creation, engagement, quality storytelling
-- **Agility**: innovation, opportunity recognition, adaptability
-- **Data Excellence**: measurement, research, insights
-- **Partnerships**: collaboration, network building
-- **Community**: engagement, mobilization, participation
+```python
+from document_analyzer import DocumentAnalyzer
+
+# Analyze documents using built-in templates
+analyzer = DocumentAnalyzer(template="aar")
+results = analyzer.analyze_directory("my_project/markdown")
+
+# Get analysis results
+summary = analyzer.get_summary(results)
+```
+
+The document-analyzer package provides:
+- **Template-based analysis**: AAR, project review, and custom templates
+- **Pattern matching**: Configurable regex patterns for theme identification
+- **Pattern extraction**: Identify themes and patterns in documents
+- **Multiple formats**: JSON, CSV, and markdown output options
 
 ## Project Structure
 
@@ -267,75 +275,97 @@ gdrive-download/
 │   ├── __init__.py
 │   ├── config.py                   # Configuration management
 │   ├── downloader/                 # Google Drive downloading
-│   │   ├── drive_downloader.py
-│   │   ├── file_converter.py
-│   │   └── relationship_tracker.py
-│   ├── analyzer/                   # Content analysis
-│   │   ├── aar_analyzer.py
-│   │   ├── pattern_matcher.py
-│   │   └── report_generator.py
+│   │   ├── drive_downloader.py       # Core downloading functionality
+│   │   ├── drive_searcher.py         # Search functionality
+│   │   ├── file_converter.py         # Document conversion
+│   │   └── relationship_tracker.py   # File relationship tracking
 │   ├── utils/                      # Utility functions
 │   │   ├── logging.py
 │   │   └── file_utils.py
 │   └── cli/                        # Command-line interfaces
-│       ├── download.py
-│       ├── analyze.py
-│       └── manage.py
+│       ├── download.py               # Download command
+│       ├── search.py                 # Search command
+│       └── manage.py                 # Management utilities
+├── src/document_analyzer/          # Companion analysis package
+│   ├── core/                       # Analysis framework
+│   ├── templates/                  # Document templates (AAR, etc.)
+│   └── cli/                        # Analysis CLI tools
 ├── tests/                          # Test suite
 ├── examples/                       # Usage examples
-│   ├── basic_usage.py
-│   ├── cli_workflow.sh
-│   └── custom_patterns.py
+│   ├── getting_started.py           # Basic usage
+│   ├── complete_workflow.py         # Full workflow
+│   └── incremental_download.py      # Smart updates
 ├── pyproject.toml                  # Package configuration
 └── README.md                       # This file
 ```
 
 ## Examples
 
-### Example 1: Basic Workflow
+The `examples/` directory contains three focused example scripts:
 
-See `examples/basic_usage.py` for a complete Python workflow example.
+### Example 1: Getting Started
 
-```bash
-python examples/basic_usage.py
-```
-
-### Example 2: CLI Workflow
-
-See `examples/cli_workflow.sh` for a complete command-line workflow.
+Simple download and conversion for first-time users:
 
 ```bash
-./examples/cli_workflow.sh
+python examples/getting_started.py "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" my_project
 ```
 
-### Example 3: Custom Analysis Patterns
+### Example 2: Complete Workflow
 
-See `examples/custom_patterns.py` for customizing analysis patterns.
+Full workflow with analysis preparation, supports both folder and search modes:
 
 ```bash
-python examples/custom_patterns.py
+# Download from folder
+python examples/complete_workflow.py folder "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" my_project
+
+# Search and download
+python examples/complete_workflow.py search "AAR*" aar_analysis
 ```
+
+### Example 3: Incremental Download
+
+Smart updates for existing projects, only downloads new/changed files:
+
+```bash
+python examples/incremental_download.py "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" my_project
+```
+
+All examples create the same standardized directory structure for consistency and tool compatibility.
 
 ## Output
 
-### Generated Reports
+### Standard Directory Structure
 
-1. **Challenges Report** (`challenges_report.md`): Systematic analysis of recurring problems with citations
-2. **Successes Report** (`successes_report.md`): Organizational strengths and wins with examples  
-3. **Insights Report** (`insights_report.md`): Cross-cutting themes and high-level patterns
+All tools create this consistent structure:
 
-### Data Files
-
-- `file_relationships.csv`: Mapping between Google Drive URLs, downloads, and markdown files
-- `*_analysis.json`: Detailed analysis data for programmatic use
-
-### Citations
-
-All reports include direct citations linking back to original Google Drive documents:
-
-```markdown
-*"Resource constraints limited our capacity"* ([Document Name](https://drive.google.com/file/d/FILE_ID/view))
 ```
+project_name/
+├── documents/              # Original downloaded files
+├── markdown/               # Converted markdown files
+├── file_relationships.csv  # URL to file mappings
+└── README.md               # Project overview
+```
+
+### Additional Files (Search Command)
+
+When using `gdrive-search`, additional files are created:
+
+- `search_results.csv`: Search metadata and file information
+- `search_summary.md`: Summary of search results and statistics
+
+### File Relationships
+
+The `file_relationships.csv` file maintains traceability:
+
+```csv
+original_name,google_drive_url,downloaded_file,markdown_file,has_download,has_markdown
+Document.docx,https://drive.google.com/file/d/...,documents/Document.docx,markdown/Document.md,True,True
+```
+
+### Integration Ready
+
+The output structure is designed for seamless integration with the `document-analyzer` package for further analysis.
 
 ## Development
 
@@ -420,9 +450,9 @@ We welcome contributions! Please see CONTRIBUTING.md for guidelines.
 ## Changelog
 
 ### v1.0.0 (Current)
-- Initial modular architecture
-- Complete CLI interface
+- Focused Google Drive downloading and conversion
+- Three command-line tools (download, search, manage)
+- Standardized directory structure
 - Comprehensive test suite
-- Pattern-based analysis system
-- Google Drive integration
-- Markdown report generation
+- Separated analysis functionality into document-analyzer package
+- Improved search capabilities with pattern matching
