@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository contains two main Python packages:
+This repository contains two linked Python packages:
 
 1. **`gdrive-download`** - Core Google Drive document downloading and conversion tool
 2. **`document-analyzer`** - Generic document analysis framework with template-based architecture
 
-The system is designed with clear separation of concerns: `gdrive-download` focuses purely on downloading and converting documents from Google Drive to markdown, while `document-analyzer` provides extensible analysis capabilities for structured documents. AAR (After Action Review) analysis is provided as the primary template, but the framework supports any document type.
+The system is designed with clear separation of concerns: `gdrive-download` focuses purely on downloading and converting documents from Google Drive to markdown, while `document-analyzer` provides extensible analysis capabilities for structured documents. AAR (After Action Review) analysis is provided as the primary template, but the framework supports any document type. 
 
 ## Core Commands
 

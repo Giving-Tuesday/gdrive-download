@@ -241,7 +241,7 @@ def main():
         f.write("## Next Steps\\n\\n")
         f.write("To analyze the documents, run:\\n\\n")
         f.write("```bash\\n")
-        f.write(f"document-analyzer -i {markdown_dir} -o {analysis_dir} --template aar\\n")
+        f.write("Use the companion document-analyzer package for analysis.\\n")
         f.write("```\\n\\n")
         f.write("## Files Overview\\n\\n")
         f.write(f"- **Mode:** {mode}\\n")
@@ -261,7 +261,7 @@ def main():
     console.print(f"  └── [cyan]README.md[/cyan]")
     
     console.print(f"\\n[bold cyan]Next step:[/bold cyan]")
-    console.print(f"[cyan]cd {base_dir} && document-analyzer -i markdown -o analysis --template aar[/cyan]")
+    console.print(f"[cyan]cd {base_dir}[/cyan] - Use document-analyzer package for analysis")
     
     return 0
 

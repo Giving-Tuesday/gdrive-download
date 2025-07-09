@@ -244,28 +244,17 @@ log_level: INFO
 
 ## Document Analysis
 
-For analyzing the downloaded documents, use the companion `document-analyzer` package:
+For analyzing the downloaded documents, use the companion `document-analyzer` package. The analyzer expects the standard directory structure created by this package:
 
-```bash
-pip install -e ../document-analyzer
+```
+project_name/
+├── documents/              # Downloaded files
+├── markdown/               # Converted markdown files
+├── file_relationships.csv  # URL mappings
+└── README.md               # Project overview
 ```
 
-```python
-from document_analyzer import DocumentAnalyzer
-
-# Analyze documents using built-in templates
-analyzer = DocumentAnalyzer(template="aar")
-results = analyzer.analyze_directory("my_project/markdown")
-
-# Get analysis results
-summary = analyzer.get_summary(results)
-```
-
-The document-analyzer package provides:
-- **Template-based analysis**: AAR, project review, and custom templates
-- **Pattern matching**: Configurable regex patterns for theme identification
-- **Pattern extraction**: Identify themes and patterns in documents
-- **Multiple formats**: JSON, CSV, and markdown output options
+The `document-analyzer` package provides template-based analysis with pattern matching capabilities. It works seamlessly with the output from `gdrive-download` tools.
 
 ## Project Structure
 
@@ -286,10 +275,6 @@ gdrive-download/
 │       ├── download.py               # Download command
 │       ├── search.py                 # Search command
 │       └── manage.py                 # Management utilities
-├── src/document_analyzer/          # Companion analysis package
-│   ├── core/                       # Analysis framework
-│   ├── templates/                  # Document templates (AAR, etc.)
-│   └── cli/                        # Analysis CLI tools
 ├── tests/                          # Test suite
 ├── examples/                       # Usage examples
 │   ├── getting_started.py           # Basic usage

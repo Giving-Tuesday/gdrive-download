@@ -95,13 +95,7 @@ python incremental_download.py "https://drive.google.com/drive/folders/YOUR_FOLD
 
 ## Integration with Document Analysis
 
-All examples create projects compatible with the `document-analyzer` package:
-
-```bash
-# After running any example
-cd my_project
-document-analyzer -i markdown -o analysis --template aar
-```
+All examples create projects compatible with the `document-analyzer` package using the standard directory structure with `documents/`, `markdown/`, and CSV files.
 
 ## Directory Structure Pattern
 

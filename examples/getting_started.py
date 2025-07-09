@@ -143,7 +143,7 @@ def main():
             f.write("## Next Steps\\n\\n")
             f.write("To analyze these documents:\\n\\n")
             f.write("```bash\\n")
-            f.write("document-analyzer -i markdown -o analysis --template aar\\n")
+            f.write("Use the companion document-analyzer package for analysis.\\n")
             f.write("```\\n")
         
         # Success summary
