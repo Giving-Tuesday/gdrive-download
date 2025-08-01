@@ -265,7 +265,7 @@ class GoogleDriveSearcher:
                 params = {
                     "q": query,
                     "pageSize": min(100, max_results - len(results)),
-                    "fields": "nextPageToken, files(id, name, mimeType, parents, webViewLink)",
+                    "fields": "nextPageToken, files(id, name, mimeType, parents, webViewLink, modifiedTime, createdTime)",
                     "orderBy": "modifiedTime desc",
                     "supportsAllDrives": True,
                     "includeItemsFromAllDrives": True,
@@ -352,7 +352,7 @@ class GoogleDriveSearcher:
         with open(output_file, "w", newline="", encoding="utf-8") as f:
             if results:
                 # Define consistent fieldnames for CSV output - match relationship tracker structure
-                fieldnames = ["id", "name", "webViewLink", "mimeType", "drive"]
+                fieldnames = ["id", "name", "webViewLink", "mimeType", "modifiedTime", "createdTime", "drive"]
                 # Add optional fields if present
                 if any("parents" in result for result in results):
                     fieldnames.append("parents")
