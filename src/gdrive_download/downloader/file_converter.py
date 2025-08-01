@@ -119,3 +119,22 @@ class FileConverter:
             'output_files': len(output_files),
             'conversion_rate': len(output_files) / len(input_files) if input_files else 0
         }
+    
+    def update_csv_with_conversions(self, csv_file: Path, converted_files: List[Path]) -> None:
+        """Update a CSV file with markdown conversion information.
+        
+        This is a convenience method that delegates to GoogleDriveSearcher.
+        
+        Args:
+            csv_file: Path to the CSV file to update  
+            converted_files: List of converted markdown file paths
+        """
+        from .drive_searcher import GoogleDriveSearcher
+        
+        # Create a temporary searcher instance just for the CSV update method
+        class TempSearcher(GoogleDriveSearcher):
+            def __init__(self):
+                pass
+        
+        searcher = TempSearcher()
+        searcher.update_csv_with_conversions(csv_file, converted_files)

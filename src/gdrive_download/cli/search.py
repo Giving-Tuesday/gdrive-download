@@ -276,6 +276,10 @@ def search(
             successful_downloads = [r for r in download_results if r[1] is not None]
             console.print(f"[green]✓ Downloaded {len(successful_downloads)} files[/green]")
             
+            # Update CSV with download results
+            results_file = base_dir / "search_results.csv"
+            searcher.update_csv_with_downloads(results_file, download_results)
+            
         except Exception as e:
             console.print(f"[red]Error during download: {e}[/red]")
             return
@@ -291,6 +295,10 @@ def search(
             
             converted_files = converter.convert_all_files()
             console.print(f"[green]✓ Converted {len(converted_files)} files[/green]")
+            
+            # Update CSV with conversion results
+            results_file = base_dir / "search_results.csv"
+            searcher.update_csv_with_conversions(results_file, converted_files)
         
         # Create summary
         summary_file = base_dir / "search_summary.md"

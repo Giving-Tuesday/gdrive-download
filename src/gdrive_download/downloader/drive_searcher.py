@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import List, Dict, Optional, Literal, Union, Any
+from typing import List, Dict, Optional, Literal, Union, Any, Tuple
 from datetime import datetime
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -351,17 +351,121 @@ class GoogleDriveSearcher:
 
         with open(output_file, "w", newline="", encoding="utf-8") as f:
             if results:
-                # Define consistent fieldnames for CSV output
-                fieldnames = ["id", "name", "mimeType", "webViewLink", "drive"]
-                # Add parents field if any result has it
+                # Define consistent fieldnames for CSV output - match relationship tracker structure
+                fieldnames = ["id", "name", "webViewLink", "mimeType", "drive"]
+                # Add optional fields if present
                 if any("parents" in result for result in results):
                     fieldnames.append("parents")
+                # Add relationship tracking fields for consistency with file_relationships.csv
+                fieldnames.extend(["downloaded_file", "markdown_file", "has_download", "has_markdown"])
 
                 writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
                 writer.writeheader()
                 writer.writerows(results)
 
         console.print(f"[green]✓ Results saved to {output_file}[/green]")
+
+    def update_csv_with_downloads(
+        self, csv_file: Path, download_results: List[Tuple[str, Optional[Path]]]
+    ) -> None:
+        """Update search results CSV with download information.
+        
+        Args:
+            csv_file: Path to the CSV file to update
+            download_results: List of tuples (webViewLink, local_file_path)
+        """
+        if not csv_file.exists():
+            console.print(f"[yellow]Warning: CSV file {csv_file} not found[/yellow]")
+            return
+            
+        import csv
+        import tempfile
+        
+        # Create mapping of URLs to download paths
+        download_map = {url: path for url, path in download_results if url}
+        
+        # Read existing CSV
+        rows = []
+        with open(csv_file, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames
+            
+            for row in reader:
+                url = row.get('webViewLink', '')
+                if url in download_map:
+                    download_path = download_map[url]
+                    row['downloaded_file'] = str(download_path) if download_path else ''
+                    row['has_download'] = str(download_path is not None)
+                rows.append(row)
+        
+        # Write updated CSV
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            if fieldnames and rows:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+        
+        updated_count = len([r for r in rows if r.get('has_download') == 'True'])
+        console.print(f"[green]✓ Updated {updated_count} download records in {csv_file}[/green]")
+
+    def update_csv_with_conversions(
+        self, csv_file: Path, converted_files: List[Path]
+    ) -> None:
+        """Update search results CSV with markdown conversion information.
+        
+        Args:
+            csv_file: Path to the CSV file to update  
+            converted_files: List of converted markdown file paths
+        """
+        if not csv_file.exists():
+            console.print(f"[yellow]Warning: CSV file {csv_file} not found[/yellow]")
+            return
+            
+        import csv
+        
+        # Create mapping of base names to markdown paths for fuzzy matching
+        markdown_map = {}
+        for md_path in converted_files:
+            base_name = md_path.stem.lower()
+            markdown_map[base_name] = str(md_path)
+        
+        # Read existing CSV
+        rows = []
+        with open(csv_file, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames
+            
+            for row in reader:
+                # Try to match by downloaded file name or original name
+                downloaded_file = row.get('downloaded_file', '')
+                original_name = row.get('name', '')
+                
+                matched_md = None
+                if downloaded_file:
+                    # Match by downloaded file name
+                    base_name = Path(downloaded_file).stem.lower()
+                    matched_md = markdown_map.get(base_name)
+                
+                if not matched_md and original_name:
+                    # Match by original name (remove extension)
+                    base_name = Path(original_name).stem.lower()
+                    matched_md = markdown_map.get(base_name)
+                
+                if matched_md:
+                    row['markdown_file'] = matched_md
+                    row['has_markdown'] = 'True'
+                    
+                rows.append(row)
+        
+        # Write updated CSV
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            if fieldnames and rows:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+        
+        updated_count = len([r for r in rows if r.get('has_markdown') == 'True'])
+        console.print(f"[green]✓ Updated {updated_count} markdown records in {csv_file}[/green]")
 
     def create_shortcuts(
         self, results: List[Dict[str, str]], target_folder_id: str

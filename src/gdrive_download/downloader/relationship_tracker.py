@@ -56,7 +56,8 @@ class FileRelationshipTracker:
         if url_mappings:
             for url_mapping in url_mappings:
                 file_name = url_mapping['name']
-                google_url = url_mapping['url']
+                google_url = url_mapping['webViewLink']
+                google_id = url_mapping.get('id', None)
                 
                 # Find corresponding downloaded file
                 downloaded_file = self.find_best_match(file_name, downloaded_files)
@@ -65,8 +66,9 @@ class FileRelationshipTracker:
                 markdown_file = self.find_best_match(file_name, markdown_files)
                 
                 relationship = {
-                    "original_name": file_name,
-                    "google_drive_url": google_url,
+                    "id": google_id,
+                    "name": file_name,
+                    "webViewLink": google_url,
                     "downloaded_file": str(downloaded_file) if downloaded_file else None,
                     "markdown_file": str(markdown_file) if markdown_file else None,
                     "has_download": downloaded_file is not None,
@@ -81,8 +83,9 @@ class FileRelationshipTracker:
                 markdown_file = self.find_best_match(downloaded_file.name, markdown_files)
                 
                 relationship = {
-                    "original_name": downloaded_file.name,
-                    "google_drive_url": None,
+                    "id": None,
+                    "name": downloaded_file.name,
+                    "webViewLink": None,
                     "downloaded_file": str(downloaded_file),
                     "markdown_file": str(markdown_file) if markdown_file else None,
                     "has_download": True,
@@ -99,7 +102,7 @@ class FileRelationshipTracker:
         
         with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = [
-                'original_name', 'google_drive_url', 'downloaded_file', 
+                'id', 'name', 'webViewLink', 'downloaded_file', 
                 'markdown_file', 'has_download', 'has_markdown'
             ]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -118,7 +121,7 @@ class FileRelationshipTracker:
             if file_info['markdown_file']:
                 markdown_stem = Path(file_info['markdown_file']).stem.lower()
                 if self.similarity(file_stem, markdown_stem) > 0.8:
-                    return file_info['google_drive_url']
+                    return file_info['webViewLink']
         
         return None
     
@@ -127,7 +130,7 @@ class FileRelationshipTracker:
         total_files = len(relationships['files'])
         with_downloads = sum(1 for f in relationships['files'] if f['has_download'])
         with_markdown = sum(1 for f in relationships['files'] if f['has_markdown'])
-        with_urls = sum(1 for f in relationships['files'] if f['google_drive_url'])
+        with_urls = sum(1 for f in relationships['files'] if f['webViewLink'])
         
         report = f"""File Relationship Analysis Report
 Generated: {relationships['scan_timestamp']}

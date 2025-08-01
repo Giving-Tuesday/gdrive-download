@@ -179,3 +179,15 @@ doc-report --template aar --format markdown --input analysis_results.json
 - **New analysis patterns**: Add regex patterns to existing templates
 - **New export formats**: Extend pattern matcher with additional export formats
 - **Integration**: Use both packages together or independently as needed
+
+## File Relationship and Naming Conventions
+
+- **File Relationship CSVs Guidelines**:
+  * File relationship mapping CSVs should:
+    1. Be consistently named
+    2. Have consistently named fields
+  * Verify that `drive_downloader.py` and `drive_searcher.py` use the same field names for identical pieces of information
+  * Check that URL fields are particularly consistent across different modules
+  * For API endpoints with distinct information:
+    - Acceptable to include unique fields in the final CSV
+    - Core fields (tracking Google file IDs, file names, markdown file paths, and URLs) must be present in all cases

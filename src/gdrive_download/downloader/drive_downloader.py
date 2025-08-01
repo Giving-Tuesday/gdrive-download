@@ -343,9 +343,9 @@ class GoogleDriveDownloader:
             if file_info['mimeType'] != 'application/vnd.google-apps.folder':
                 file_mappings.append({
                     'name': file_info['name'],
-                    'url': file_info['webViewLink'],
+                    'webViewLink': file_info['webViewLink'],
                     'id': file_info['id'],
-                    'mime_type': file_info['mimeType']
+                    'mimeType': file_info['mimeType']
                 })
         
         return file_mappings
