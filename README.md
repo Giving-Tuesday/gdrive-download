@@ -1,231 +1,325 @@
-# Google Drive Downloading and Analysis Package
+# Google Drive Download Tools
 
-This project contains two Python packages, one for bulk downloading & conversion of google docs, and a second with preliminary analysis tools for the same.  
+A Python toolkit for searching, downloading, and organizing documents from Google Drive. One simple but important ability is **creating shortcuts (aliases) in a Google Drive folder** that link to all files matching a search pattern—useful for organizing scattered documents without moving or duplicating them. This toolkit serves as the foundation for more advanced document analysis tools used in other GivingTuesday Data Commons projects.
 
-## Google Drive Download Tools
+## Key Features
 
-A focused Python package for downloading and converting documents from Google Drive to markdown format. This package handles Google Drive integration, document downloading, and conversion to markdown. For document analysis capabilities, see the companion `document-analyzer` package.
+- **Create Shortcuts**: Automatically create Google Drive shortcuts to files matching a search pattern, organizing them in a single folder without moving the originals
+- **Search Across Drives**: Search for files by pattern across your personal drive and all shared drives you have access to
+- **Download & Convert**: Download Google Docs and Word documents, automatically converting them to markdown format
+- **Track Relationships**: Maintain CSV records linking original Google Drive URLs to downloaded files
+- **Filter by Date**: Find files modified within a time range (last 7 days, since a specific date, etc.)
 
-### Features
+## Quick Start for New Users
 
-- **Google Drive Integration**: Download documents from shared Google Drive folders with full authentication support
-- **Document Conversion**: Convert Word documents (.docx) to markdown using high-quality mammoth + markdownify pipeline
-- **Search Capabilities**: Search for files by pattern across personal and shared drives
-- **Relationship Tracking**: Maintain links between original Google Drive URLs, downloaded files, and converted markdown
-- **CLI Interface**: Three command-line tools for streamlined workflows
-- **Standardized Structure**: Creates consistent project directory structure for easy organization
-- **Incremental Updates**: Smart downloading to avoid re-processing existing files
+### Prerequisites
 
-### Installation
+Before you begin, you'll need:
 
-#### Prerequisites
+1. **Python 3.8 or higher** - Check with `python --version` in your terminal
+2. **Git** - For cloning the repository
+3. **Google Drive API credentials** - See [Getting Google API Credentials](#getting-google-api-credentials) below
 
-- Python 3.8 or higher
-- Google Drive API credentials (see [Setup Guide](#google-drive-setup))
+### Step 1: Open Your Terminal
 
-#### Install from Source
+- **macOS**: Press `Cmd + Space`, type "Terminal", and press Enter
+- **Windows**: Press `Win + R`, type "cmd", and press Enter (or use PowerShell)
+- **Linux**: Press `Ctrl + Alt + T` or find Terminal in your applications
+
+### Step 2: Clone the Repository
 
 ```bash
-## Clone and navigate to the refactor directory
-cd refactor/
+# Navigate to where you want to put the project
+cd ~/Documents
 
-## Create virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Clone the repository
+git clone https://github.com/givingtuesday/gdrive-download.git
+
+# Enter the project directory
+cd gdrive-download
+```
+
+### Step 3: Set Up Python Environment
+
+```bash
+# Create a virtual environment
+python -m venv .venv
+
+# Activate it
+# On macOS/Linux:
+source .venv/bin/activate
+
+# On Windows:
+.venv\Scripts\activate
 
 # Install the package
 pip install -e .
-
-# For development with testing tools
-pip install -e ".[dev]"
 ```
 
-### Quick Start
+### Step 4: Add Your Google Credentials
 
-#### 1. Google Drive Setup
+Copy your `credentials.json` file (see [Getting Google API Credentials](#getting-google-api-credentials)) into the `gdrive-download` folder.
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the Google Drive API
-4. Create credentials (OAuth 2.0 Client ID)
-5. Download the credentials file as `credentials.json`
+### Step 5: First Run (Authentication)
 
-#### 2. Basic Usage
+The first time you run a command, a browser window will open asking you to authorize access to your Google Drive. After you approve, a `token.pickle` file will be created to remember your authorization.
 
 ```bash
-# Download and convert documents from a folder
-gdrive-download --folder-url "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" \
-             --credentials credentials.json
-
-# Search for documents by pattern
-gdrive-search --pattern "AAR*" --credentials credentials.json
-
-# Check status
-gdrive-manage status
+# Test with a simple search
+gdrive-search -p "test*" --no-download
 ```
 
-#### 3. Python API
+---
 
-```python
-from gdrive_download import GoogleDriveDownloader, GoogleDriveSearcher, FileConverter
-from gdrive_download.config import GlobalConfig
+## Creating Shortcuts
 
-# Setup configuration
-config = GlobalConfig()
+One simple but important capability is creating **shortcuts** (also called aliases or links) in a Google Drive folder. This lets you:
 
-# Download documents from folder
-downloader = GoogleDriveDownloader(config.downloader)
-results = downloader.download_folder("https://drive.google.com/drive/folders/...")
+- Collect related documents from across multiple shared drives into one folder
+- Organize files without moving or duplicating them
+- Share a curated collection with others by sharing just the shortcuts folder
 
-# Search for documents
-searcher = GoogleDriveSearcher(config.downloader)
-search_results = searcher.search_files(pattern="AAR*", drive_scope="all")
-
-# Convert documents to markdown
-converter = FileConverter(input_dir="documents", output_dir="markdown")
-converted_files = converter.convert_all_files()
-```
-
-### Main Components
-
-#### Downloader Module
-The downloader module handles all interactions with Google Drive, including authentication, file discovery, downloading, and format conversion. Key features:
-- OAuth2 authentication with token persistence
-- Batch downloading from Google Drive folders
-- File search across personal and shared drives
-- Document conversion to markdown format
-- Relationship tracking between Drive URLs and local files
-
-#### Standard Directory Structure
-All operations create a consistent directory structure:
-```
-project_name/
-├── documents/              # Downloaded files
-├── markdown/               # Converted markdown files
-├── file_relationships.csv  # URL to file mappings
-└── README.md               # Project overview
-```
-
-#### Integration with Document Analysis
-For document analysis, use the companion `document-analyzer` package:
-```python
-from document_analyzer import DocumentAnalyzer
-
-analyzer = DocumentAnalyzer(template="aar")
-results = analyzer.analyze_directory("project_name/markdown")
-```
-
-### Command Line Tools
-
-#### `gdrive-download` - Download and Convert
-
-Downloads documents from Google Drive and converts them to markdown using the standard directory structure.
+### Basic Shortcut Creation
 
 ```bash
-gdrive-download [OPTIONS]
+# Search for files and create shortcuts to them (without downloading)
+gdrive-search -p "Project Brief*" --no-download --create-shortcuts FOLDER_ID
 
-Options:
-  -u, --folder-url TEXT     Google Drive folder URL (required)
-  -o, --output-dir TEXT     Base output directory (auto-generated from folder name if not specified)
-  --documents-subdir TEXT   Subdirectory for downloaded files [default: documents]
-  --markdown-subdir TEXT    Subdirectory for markdown files [default: markdown]
-  -c, --credentials TEXT    Path to Google API credentials file [default: credentials.json]
-  --convert/--no-convert    Convert to markdown [default: convert]
-  --track-relationships     Track file relationships [default: True]
-  --config-file TEXT        Path to configuration file
-  --log-level [DEBUG|INFO|WARNING|ERROR]  [default: INFO]
+# Search, download, AND create shortcuts
+gdrive-search -p "AAR*" --create-shortcuts FOLDER_ID
 ```
+
+### Finding Your Folder ID
+
+The `FOLDER_ID` is the long string of characters at the end of a Google Drive folder URL:
+
+```
+https://drive.google.com/drive/folders/1ABC123xyz789DEF456ghi
+                                        └────────────────────┘
+                                         This is the FOLDER_ID
+```
+
+**To get a folder ID:**
+
+1. Open Google Drive in your web browser
+2. Navigate to the folder where you want shortcuts created (or create a new folder)
+3. Look at the URL in your browser's address bar
+4. Copy the part after `/folders/`
 
 **Example:**
+- URL: `https://drive.google.com/drive/folders/1UuS4Q2z1nsFI-eEy5K4TLx6qoJvzHrAK`
+- Folder ID: `1UuS4Q2z1nsFI-eEy5K4TLx6qoJvzHrAK`
+
+### Common Shortcut Workflows
+
 ```bash
-gdrive-download -u "https://drive.google.com/drive/folders/1UuS4Q2z1nsFI-eEy5K4TLx6qoJvzHrAK" \
-             -c credentials.json \
-             -o my_project
+# Collect all project briefs into one folder
+gdrive-search -p "Project Brief*" --no-download --create-shortcuts 1ABC123xyz
+
+# Find recent AARs and organize them
+gdrive-search -p "AAR*" --since 30d --no-download --create-shortcuts 1ABC123xyz
+
+# Search only shared drives
+gdrive-search -p "Report*" -s shared --no-download --create-shortcuts 1ABC123xyz
 ```
 
-Creates structure:
-```
-my_project/
-├── documents/              # Downloaded files
-├── markdown/               # Converted markdown files
-└── file_relationships.csv  # URL mappings
-```
+---
 
+## All Command-Line Tools
 
-#### `gdrive-search` - Search Google Drive
+### `gdrive-search` - Search and Organize
 
-Search for files by pattern across Google Drive and optionally download them using the standard directory structure.
+The primary tool for finding files and creating shortcuts.
 
 ```bash
 gdrive-search [OPTIONS]
 
+Required:
+  -p, --pattern TEXT        File name pattern to search for (supports wildcards)
+
 Options:
-  -p, --pattern TEXT        File name pattern (required, supports wildcards)
-  -s, --scope [personal|all|shared]  Drive scope [default: all]
-  --shared-drive-id TEXT    Specific shared drive ID when scope is "shared"
-  -t, --file-types TEXT     File types to search [default: document]
-  -o, --output-dir TEXT     Base output directory [default: search_<pattern>]
-  -c, --credentials TEXT    Google API credentials file [default: credentials.json]
-  --download/--no-download  Download found files [default: download]
-  --convert/--no-convert    Convert to markdown [default: convert]
-  --max-results INT         Maximum results [default: 100]
-  --create-shortcuts TEXT   Create shortcuts in specified folder ID
-  --since TEXT              Filter files modified since date (e.g., 7d, 2024-01-01)
+  -s, --scope [personal|all|shared]
+                            Where to search [default: all]
+                            - personal: Only your personal drive
+                            - shared: Only shared drives
+                            - all: Both personal and shared drives
+
+  --shared-drive-id TEXT    Search a specific shared drive by its ID
+
+  -t, --file-types TEXT     File types to find [default: document]
+                            Options: document, spreadsheet, presentation, pdf
+
+  -o, --output-dir TEXT     Where to save downloads [default: search_<pattern>]
+
+  -c, --credentials TEXT    Path to credentials file [default: credentials.json]
+
+  --download/--no-download  Download the files found [default: download]
+
+  --convert/--no-convert    Convert docs to markdown [default: convert]
+
+  --max-results INT         Maximum files to find [default: 100]
+
+  --create-shortcuts TEXT   Create shortcuts in this folder ID
+
+  --since TEXT              Only files modified since this date
+                            Examples: 7d, 2w, 30d, 2024-01-01
 ```
 
 **Examples:**
+
 ```bash
-# Search for AAR documents
+# Find all AAR documents
 gdrive-search -p "AAR*"
 
-# Search and create shortcuts without downloading
-gdrive-search -p "Project Brief*" --no-download --create-shortcuts FOLDER_ID
+# Find files modified in the last week, create shortcuts only
+gdrive-search -p "*2024*" --since 7d --no-download --create-shortcuts FOLDER_ID
 
-# Search for recent files (last 7 days)
-gdrive-search -p "Report*" --since 7d -o recent_reports
+# Search only personal drive with a regex pattern
+gdrive-search -p "^Report.*\.docx$" -s personal
+
+# Search with specific file types
+gdrive-search -p "Budget*" -t spreadsheet
 ```
 
-Creates structure:
-```
-search_AAR/  (or specified output directory)
-├── documents/              # Downloaded files
-├── markdown/               # Converted markdown files
-├── search_results.csv      # Search metadata
-└── search_summary.md       # Search summary
-```
+### `gdrive-download` - Download from a Folder
 
-#### `gdrive-manage` - Management Utilities
-
-Collection of utilities for managing document workflows.
+Download all documents from a specific Google Drive folder.
 
 ```bash
-gdrive-manage [COMMAND] [OPTIONS]
+gdrive-download [OPTIONS]
+
+Required:
+  -u, --folder-url TEXT     Google Drive folder URL
+
+Options:
+  -o, --output-dir TEXT     Where to save files [default: auto-generated]
+  -c, --credentials TEXT    Credentials file [default: credentials.json]
+  --convert/--no-convert    Convert to markdown [default: convert]
+  --track-relationships     Create CSV tracking file [default: True]
+```
+
+**Finding a Folder URL:**
+
+1. Open the folder in Google Drive
+2. Copy the entire URL from your browser
+
+**Example:**
+
+```bash
+gdrive-download -u "https://drive.google.com/drive/folders/1UuS4Q2z1nsFI-eEy5K4TLx6qoJvzHrAK"
+```
+
+### `gdrive-manage` - Utilities
+
+```bash
+gdrive-manage [COMMAND]
 
 Commands:
-  init-config              Initialize configuration file
-  status                   Show file status and relationships
-  update-urls             Update URLs in existing reports
-  cleanup                 Clean up temporary files
-  version                 Show version information
+  status        Show download/conversion status
+  init-config   Create a configuration file
+  version       Show version information
 ```
 
-**Examples:**
-```bash
-# Initialize configuration
-gdrive-manage init-config
+---
 
-# Check status
-gdrive-manage status --downloads-dir downloads --markdown-dir markdown
+## Understanding Google Drive URLs and IDs
 
-# Update report URLs
-gdrive-manage update-urls old_report.md url_mappings.json
+### Folder URLs and IDs
+
+| What | Example |
+|------|---------|
+| Folder URL | `https://drive.google.com/drive/folders/1ABC123xyz789DEF456` |
+| Folder ID | `1ABC123xyz789DEF456` |
+
+### File URLs and IDs
+
+| What | Example |
+|------|---------|
+| File URL | `https://drive.google.com/file/d/1XYZ789abc123DEF456/view` |
+| File ID | `1XYZ789abc123DEF456` |
+
+### Shared Drive URLs
+
+| What | Example |
+|------|---------|
+| Shared Drive URL | `https://drive.google.com/drive/folders/0APQ123abc789?resourcekey=...` |
+| Shared Drive ID | `0APQ123abc789` |
+
+**Tip:** Shared drive IDs often start with `0A`.
+
+---
+
+## Getting Google API Credentials
+
+To use these tools, you need to create Google API credentials:
+
+### Step 1: Create a Google Cloud Project
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Click "Select a project" at the top, then "New Project"
+3. Name it something like "Drive Download Tool"
+4. Click "Create"
+
+### Step 2: Enable the Google Drive API
+
+1. In your new project, go to "APIs & Services" → "Library"
+2. Search for "Google Drive API"
+3. Click on it and press "Enable"
+
+### Step 3: Create OAuth Credentials
+
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth client ID"
+3. If prompted, configure the OAuth consent screen:
+   - Choose "External" (unless you have a Workspace account)
+   - Fill in the required fields (app name, email)
+   - Add yourself as a test user
+4. For Application type, choose "Desktop app"
+5. Click "Create"
+
+### Step 4: Download Credentials
+
+1. Click the download icon next to your new credential
+2. Rename the file to `credentials.json`
+3. Move it to your `gdrive-download` folder
+
+---
+
+## Output Structure
+
+When you download files, this structure is created:
+
+```
+search_AAR/                      # Output directory (named after search)
+├── documents/                   # Downloaded original files
+│   ├── AAR_Project_Alpha.docx
+│   └── AAR_Project_Beta.docx
+├── markdown/                    # Converted markdown files
+│   ├── AAR_Project_Alpha.md
+│   └── AAR_Project_Beta.md
+├── search_results.csv           # Metadata about found files
+└── file_relationships.csv       # Maps URLs to local files
 ```
 
-### Configuration
+---
 
-#### Configuration File
+## Search Patterns
 
-Create `gdrive_config.yaml` to customize behavior:
+The `-p/--pattern` option supports several pattern types:
+
+| Pattern | Matches |
+|---------|---------|
+| `AAR*` | Files starting with "AAR" |
+| `*2024*` | Files containing "2024" anywhere |
+| `*.docx` | Files ending with ".docx" |
+| `Project Brief*` | Files starting with "Project Brief" |
+| `^AAR.*\.docx$` | Regex: AAR files that are .docx |
+
+---
+
+## Configuration File (Optional)
+
+Create `gdrive_config.yaml` for persistent settings:
 
 ```yaml
 downloader:
@@ -233,190 +327,69 @@ downloader:
   batch_size: 10
   credentials_file: credentials.json
   token_file: token.pickle
-  
+
 working_dir: .
 log_level: INFO
 ```
 
-#### Environment Variables
+---
 
-- `GOOGLE_APPLICATION_CREDENTIALS`: Path to Google API credentials
+## Troubleshooting
 
-## Document Analysis
+### "credentials.json not found"
 
-For analyzing the downloaded documents, use the companion `document-analyzer` package. The analyzer expects the standard directory structure created by this package:
-
-```
-project_name/
-├── documents/              # Downloaded files
-├── markdown/               # Converted markdown files
-├── file_relationships.csv  # URL mappings
-└── README.md               # Project overview
-```
-
-The `document-analyzer` package provides template-based analysis with pattern matching capabilities. It works seamlessly with the output from `gdrive-download` tools.
-
-## Project Structure
-
-```
-gdrive-download/
-├── src/gdrive_download/          # Main package
-│   ├── __init__.py
-│   ├── config.py                   # Configuration management
-│   ├── downloader/                 # Google Drive downloading
-│   │   ├── drive_downloader.py       # Core downloading functionality
-│   │   ├── drive_searcher.py         # Search functionality
-│   │   ├── file_converter.py         # Document conversion
-│   │   └── relationship_tracker.py   # File relationship tracking
-│   ├── utils/                      # Utility functions
-│   │   ├── logging.py
-│   │   └── file_utils.py
-│   └── cli/                        # Command-line interfaces
-│       ├── download.py               # Download command
-│       ├── search.py                 # Search command
-│       └── manage.py                 # Management utilities
-├── tests/                          # Test suite
-├── examples/                       # Usage examples
-│   ├── getting_started.py           # Basic usage
-│   ├── complete_workflow.py         # Full workflow
-│   └── incremental_download.py      # Smart updates
-├── pyproject.toml                  # Package configuration
-└── README.md                       # This file
-```
-
-## Examples
-
-The `examples/` directory contains three focused example scripts:
-
-### Example 1: Getting Started
-
-Simple download and conversion for first-time users:
+Make sure your `credentials.json` file is in the current directory, or specify its path:
 
 ```bash
-python examples/getting_started.py "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" my_project
+gdrive-search -p "AAR*" -c /path/to/credentials.json
 ```
 
-### Example 2: Complete Workflow
+### "Access denied" or "File not found"
 
-Full workflow with analysis preparation, supports both folder and search modes:
+- Verify you have access to the folder/files in Google Drive
+- Check that the folder ID or URL is correct
+- For shared drives, you may need to be explicitly added as a member
+
+### "Token has been expired or revoked"
+
+Delete `token.pickle` and run the command again to re-authenticate:
 
 ```bash
-# Download from folder
-python examples/complete_workflow.py folder "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" my_project
-
-# Search and download
-python examples/complete_workflow.py search "AAR*" aar_analysis
+rm token.pickle
+gdrive-search -p "test*" --no-download
 ```
 
-### Example 3: Incremental Download
+### Browser doesn't open for authentication
 
-Smart updates for existing projects, only downloads new/changed files:
+If running on a remote server, you may need to copy the authentication URL and open it manually in a local browser.
 
-```bash
-python examples/incremental_download.py "https://drive.google.com/drive/folders/YOUR_FOLDER_ID" my_project
-```
-
-All examples create the same standardized directory structure for consistency and tool compatibility.
-
-## Output
-
-### Standard Directory Structure
-
-All tools create this consistent structure:
-
-```
-project_name/
-├── documents/              # Original downloaded files
-├── markdown/               # Converted markdown files
-├── file_relationships.csv  # URL to file mappings
-└── README.md               # Project overview
-```
-
-### Additional Files (Search Command)
-
-When using `gdrive-search`, additional files are created:
-
-- `search_results.csv`: Search metadata and file information
-- `search_summary.md`: Summary of search results and statistics
-
-### File Relationships
-
-The `file_relationships.csv` file maintains traceability:
-
-```csv
-original_name,google_drive_url,downloaded_file,markdown_file,has_download,has_markdown
-Document.docx,https://drive.google.com/file/d/...,documents/Document.docx,markdown/Document.md,True,True
-```
-
-### Integration Ready
-
-The output structure is designed for seamless integration with the `document-analyzer` package for further analysis.
+---
 
 ## Development
 
 ### Running Tests
 
 ```bash
-# Run all tests
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
 pytest
 
 # Run with coverage
-pytest --cov=src/gdrive_download --cov-report=html
-
-# Run specific test file
-pytest tests/test_config.py
+pytest --cov=src/gdrive_download
 ```
 
 ### Code Quality
 
 ```bash
-# Format code
-black src/ tests/
-
-# Sort imports
-isort src/ tests/
-
-# Type checking
-mypy src/
-
-# Linting
-flake8 src/ tests/
+black src/ tests/      # Format code
+isort src/ tests/      # Sort imports
+mypy src/              # Type checking
+flake8 src/ tests/     # Linting
 ```
 
-### Pre-commit Hooks
-
-```bash
-# Install pre-commit hooks
-pre-commit install
-
-# Run hooks manually
-pre-commit run --all-files
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Google API Authentication Errors**
-   - Ensure credentials.json is valid and accessible
-   - Check that Google Drive API is enabled in your project
-   - Verify the folder URL is correct and accessible
-
-2. **File Conversion Errors**
-   - Install system dependencies for document conversion
-   - Check file permissions in download directories
-   - Verify input files are valid .docx format
-
-3. **Memory Issues with Large Datasets**
-   - Reduce batch_size in configuration
-   - Process files in smaller chunks
-   - Monitor disk space for temporary files
-
-### Getting Help
-
-- **Issues**: Report bugs at [GitHub Issues](https://github.com/givingtuesday/gdrive-download/issues)
-- **Documentation**: Full documentation at [docs.example.com](https://docs.example.com)
-- **Support**: Contact the development team
+---
 
 ## License
 
@@ -424,20 +397,9 @@ MIT License - see LICENSE file for details.
 
 ## Contributing
 
-We welcome contributions! Please see CONTRIBUTING.md for guidelines.
+Contributions welcome! Please:
 
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Changelog
-
-### v1.0.0 (Current)
-- Focused Google Drive downloading and conversion
-- Three command-line tools (download, search, manage)
-- Standardized directory structure
-- Comprehensive test suite
-- Separated analysis functionality into document-analyzer package
-- Improved search capabilities with pattern matching
+4. Submit a pull request
