@@ -170,3 +170,19 @@ reports/
 aar_data/
 /README.html
 /README_files/
+
+# Search output directories (created by gdrive-search)
+search_*/
+
+# Test output directories
+Test_*/
+
+# Sandbox and experimental directories
+sandbox/
+quickdocs/
+
+# uv lock file (environment-specific)
+uv.lock
+
+# Old/backup virtual environments
+.venv-old/

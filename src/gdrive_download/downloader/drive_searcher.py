@@ -351,11 +351,20 @@ class GoogleDriveSearcher:
 
         with open(output_file, "w", newline="", encoding="utf-8") as f:
             if results:
-                # Define consistent fieldnames for CSV output - match relationship tracker structure
-                fieldnames = ["id", "name", "webViewLink", "mimeType", "modifiedTime", "createdTime", "drive"]
-                # Add optional fields if present
-                if any("parents" in result for result in results):
+                # Build fieldnames based on what's actually in the first result
+                fieldnames = []
+                first_result = results[0]
+                
+                # Core fields in preferred order
+                core_fields = ["id", "name", "webViewLink", "mimeType", "modifiedTime", "createdTime", "drive"]
+                for field in core_fields:
+                    if field in first_result:
+                        fieldnames.append(field)
+                
+                # Add parents if present
+                if "parents" in first_result:
                     fieldnames.append("parents")
+                    
                 # Add relationship tracking fields for consistency with file_relationships.csv
                 fieldnames.extend(["downloaded_file", "markdown_file", "has_download", "has_markdown"])
 

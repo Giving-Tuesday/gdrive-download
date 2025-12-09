@@ -164,9 +164,12 @@ def search(
     markdown_dir = base_dir / "markdown"
     config.downloader.output_dir = documents_dir
     
-    # Create directories if downloading
+    # Create base directory (always needed for CSV)
+    base_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create download directories if downloading
     if download:
-        for dir_path in [base_dir, documents_dir, markdown_dir]:
+        for dir_path in [documents_dir, markdown_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
     
     console.print(f"[bold blue]🔍 Searching Google Drive[/bold blue]")
@@ -204,10 +207,9 @@ def search(
         # Display results
         searcher.display_results(search_results, show_limit=20)
         
-        # Save search results if downloading
-        if download:
-            results_file = base_dir / "search_results.csv"
-            searcher.save_results(search_results, results_file)
+        # Always save search results to CSV
+        results_file = base_dir / "search_results.csv"
+        searcher.save_results(search_results, results_file)
         
     except Exception as e:
         console.print(f"[red]Error during search: {e}[/red]")
