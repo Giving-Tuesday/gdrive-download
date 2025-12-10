@@ -10,13 +10,43 @@ A Python toolkit for searching, downloading, and organizing documents from Googl
 - **Track Relationships**: Maintain CSV records linking original Google Drive URLs to downloaded files
 - **Filter by Date**: Find files modified within a time range (last 7 days, since a specific date, etc.)
 
-## Quick Start for New Users
+## Desktop Application (GUI)
+
+A simple graphical interface is available for users who prefer not to use the command line.
+
+### Download Pre-Built Application
+
+Download the latest release for your platform from the [Releases page](https://github.com/givingtuesday/gdrive-download/releases):
+
+| Platform | Download |
+|----------|----------|
+| macOS | `GDrive Tools.app` (in .zip) |
+| Windows | `GDrive Tools.exe` |
+| Linux | `GDrive Tools` |
+
+### First-Time Setup
+
+1. **Get Google API credentials** (see [Getting Google API Credentials](#getting-google-api-credentials))
+2. **Place `credentials.json`** in:
+   - **Windows**: `%APPDATA%\gdrive-download\`
+   - **macOS**: `~/Library/Application Support/gdrive-download/`
+   - **Linux**: `~/.config/gdrive-download/`
+3. **Launch the application** and use the Browse button to select your credentials if needed
+
+### First Run Notes
+
+- **macOS**: Right-click → Open → Open (to bypass Gatekeeper for unsigned apps)
+- **Windows**: Click "More info" → "Run anyway" if SmartScreen appears
+
+---
+
+## Command-Line Installation (For Developers)
 
 ### Prerequisites
 
 Before you begin, you'll need:
 
-1. **Python 3.8 or higher** - Check with `python --version` in your terminal
+1. **Python 3.9 or higher** - Check with `python --version` in your terminal
 2. **Git** - For cloning the repository
 3. **Google Drive API credentials** - See [Getting Google API Credentials](#getting-google-api-credentials) below
 

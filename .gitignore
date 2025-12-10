@@ -186,3 +186,8 @@ uv.lock
 
 # Old/backup virtual environments
 .venv-old/
+
+# PyInstaller build artifacts
+dist/
+build/
+*.spec.bak
