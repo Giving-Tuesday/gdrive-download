@@ -1,8 +1,10 @@
 """Results table widget with checkboxes for file selection."""
 
+import webbrowser
 from typing import List, Dict, Optional
 
 from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtGui import QCursor
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -18,6 +20,35 @@ from PyQt5.QtWidgets import (
     QDialog,
     QDialogButtonBox,
 )
+
+
+def _get_drive_url(file_id: str, mime_type: str = "") -> str:
+    """Build Google Drive URL for opening a file."""
+    if "document" in mime_type:
+        return f"https://docs.google.com/document/d/{file_id}/edit"
+    elif "spreadsheet" in mime_type:
+        return f"https://docs.google.com/spreadsheets/d/{file_id}/edit"
+    elif "presentation" in mime_type:
+        return f"https://docs.google.com/presentation/d/{file_id}/edit"
+    else:
+        return f"https://drive.google.com/file/d/{file_id}/view"
+
+
+class ClickableLabel(QLabel):
+    """A label that looks like a link and opens a URL when clicked."""
+
+    def __init__(self, text: str, url: str, parent: Optional[QWidget] = None):
+        super().__init__(parent)
+        self._url = url
+        self.setText(f'<a href="#">{text}</a>')
+        self.setTextFormat(Qt.RichText)
+        self.setCursor(QCursor(Qt.PointingHandCursor))
+        self.setToolTip(f"Open in browser: {url}")
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self._url:
+            webbrowser.open(self._url)
+        super().mousePressEvent(event)
 
 
 class ResultsTable(QWidget):
@@ -88,10 +119,14 @@ class ResultsTable(QWidget):
             checkbox.stateChanged.connect(lambda: self.selectionChanged.emit())
             self.table.setCellWidget(row, 0, checkbox)
 
-            # Name
-            name_item = QTableWidgetItem(item.get("name", ""))
-            name_item.setData(Qt.UserRole, item)  # Store full data
-            self.table.setItem(row, 1, name_item)
+            # Name as clickable link
+            file_id = item.get("id", "")
+            mime_type = item.get("mimeType", "")
+            name = item.get("name", "")
+            url = _get_drive_url(file_id, mime_type)
+            name_label = ClickableLabel(name, url)
+            name_label.setProperty("item_data", item)  # Store full data
+            self.table.setCellWidget(row, 1, name_label)
 
             # Type (extract from mimeType)
             mime_type = item.get("mimeType", "")
@@ -150,9 +185,9 @@ class ResultsTable(QWidget):
         for row in range(self.table.rowCount()):
             checkbox = self.table.cellWidget(row, 0)
             if checkbox and checkbox.isChecked():
-                item = self.table.item(row, 1)
-                if item:
-                    data = item.data(Qt.UserRole)
+                name_widget = self.table.cellWidget(row, 1)
+                if name_widget:
+                    data = name_widget.property("item_data")
                     if data:
                         selected.append(data)
         return selected
@@ -280,8 +315,13 @@ class ExpandedResultsDialog(QDialog):
             checkbox.stateChanged.connect(self._on_checkbox_changed)
             self.table.setCellWidget(row, 0, checkbox)
 
-            # Name
-            self.table.setItem(row, 1, QTableWidgetItem(item.get("name", "")))
+            # Name as clickable link
+            file_id = item.get("id", "")
+            mime_type = item.get("mimeType", "")
+            name = item.get("name", "")
+            url = _get_drive_url(file_id, mime_type)
+            name_label = ClickableLabel(name, url)
+            self.table.setCellWidget(row, 1, name_label)
 
             # Type
             mime_type = item.get("mimeType", "")
