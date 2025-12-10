@@ -430,7 +430,7 @@ class GDriveApp:
                 results = searcher.search_files(
                     pattern=pattern,
                     drive_scope=self.scope_var.get(),
-                    modified_since=since_date,
+                    since_date=since_date,
                 )
 
                 self._log(f"Found {len(results)} files")
