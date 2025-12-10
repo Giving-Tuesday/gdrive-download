@@ -11,6 +11,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -24,6 +25,7 @@ jobs:
             asset_name: GDrive-Tools-Linux
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +43,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: pyinstaller packaging/gdrive-gui.spec --clean --distpath dist/
+        timeout-minutes: 10
 
       - name: Zip macOS app
         if: matrix.os == 'macos-latest'
@@ -60,12 +63,17 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
 
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
+
+      - name: List artifacts
+        run: find artifacts -type f
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
