@@ -41,8 +41,12 @@ class DownloadWorker(QThread):
     def run(self):
         """Execute the download operation."""
         try:
+            # Store token in same directory as credentials
+            token_path = self.credentials_path.parent / "token.pickle"
+
             config = DownloaderConfig(
                 credentials_file=self.credentials_path,
+                token_file=token_path,
                 output_dir=self.output_dir,
             )
 

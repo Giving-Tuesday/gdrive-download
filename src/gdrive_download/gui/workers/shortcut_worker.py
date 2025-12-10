@@ -32,8 +32,12 @@ class ShortcutWorker(QThread):
         try:
             self.progress.emit(f"Creating shortcuts for {len(self.files)} files...")
 
+            # Store token in same directory as credentials
+            token_path = self.credentials_path.parent / "token.pickle"
+
             config = DownloaderConfig(
                 credentials_file=self.credentials_path,
+                token_file=token_path,
             )
 
             searcher = GoogleDriveSearcher(config)
