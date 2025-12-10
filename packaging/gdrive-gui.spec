@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec file for gdrive GUI application."""
+"""PyInstaller spec file for gdrive GUI application (PyQt5)."""
 import os
 import sys
 
@@ -10,11 +10,17 @@ src_dir = os.path.join(spec_dir, '..', 'src')
 block_cipher = None
 
 a = Analysis(
-    [os.path.join(src_dir, 'gdrive_download', 'gui', 'app.py')],
+    [os.path.join(src_dir, 'gdrive_download', 'gui', '__main__.py')],
     pathex=[src_dir],
     binaries=[],
     datas=[],
     hiddenimports=[
+        # PyQt5
+        'PyQt5',
+        'PyQt5.sip',
+        'PyQt5.QtCore',
+        'PyQt5.QtWidgets',
+        'PyQt5.QtGui',
         # Google API libraries
         'google.auth',
         'google.auth.transport',
@@ -35,7 +41,24 @@ a = Analysis(
         'docx',
         'lxml',
         'lxml.etree',
-        # CLI modules (used by GUI)
+        # GUI modules
+        'gdrive_download.gui',
+        'gdrive_download.gui.main_window',
+        'gdrive_download.gui.tabs',
+        'gdrive_download.gui.tabs.search_tab',
+        'gdrive_download.gui.tabs.download_tab',
+        'gdrive_download.gui.tabs.manage_tab',
+        'gdrive_download.gui.tabs.settings_tab',
+        'gdrive_download.gui.widgets',
+        'gdrive_download.gui.widgets.file_browser',
+        'gdrive_download.gui.widgets.log_panel',
+        'gdrive_download.gui.widgets.results_table',
+        'gdrive_download.gui.workers',
+        'gdrive_download.gui.workers.search_worker',
+        'gdrive_download.gui.workers.download_worker',
+        'gdrive_download.gui.workers.shortcut_worker',
+        'gdrive_download.gui.workers.manage_worker',
+        # CLI modules (used by workers)
         'gdrive_download.cli.search',
         'gdrive_download.cli.download',
         'gdrive_download.cli.manage',
@@ -61,18 +84,12 @@ a = Analysis(
         'rich.prompt',
         'yaml',
         'pathspec',
-        # Tkinter (usually bundled but ensure it's included)
-        'tkinter',
-        'tkinter.ttk',
-        'tkinter.filedialog',
-        'tkinter.messagebox',
-        'tkinter.scrolledtext',
         # Standard library
         'pickle',
         'json',
         'csv',
         'queue',
-        'threading',
+        'logging',
         'email.mime.text',
     ],
     hookspath=[],
@@ -88,6 +105,8 @@ a = Analysis(
         'IPython',
         'notebook',
         'pytest',
+        # Exclude tkinter (no longer needed)
+        'tkinter',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -131,8 +150,8 @@ if sys.platform == 'darwin':
         info_plist={
             'CFBundleName': 'GDrive Tools',
             'CFBundleDisplayName': 'GDrive Tools',
-            'CFBundleVersion': '1.0.0',
-            'CFBundleShortVersionString': '1.0.0',
+            'CFBundleVersion': '0.2.0',
+            'CFBundleShortVersionString': '0.2.0',
             'NSHighResolutionCapable': True,
         },
     )
