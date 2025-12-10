@@ -15,14 +15,11 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            artifact_name: "GDrive Tools.app"
-            asset_name: GDrive-Tools-macOS.zip
+            platform: macOS
           - os: windows-latest
-            artifact_name: "GDrive Tools.exe"
-            asset_name: GDrive-Tools-Windows.exe
+            platform: Windows
           - os: ubuntu-latest
-            artifact_name: "GDrive Tools"
-            asset_name: GDrive-Tools-Linux
+            platform: Linux
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -45,19 +42,31 @@ jobs:
         run: pyinstaller packaging/gdrive-gui.spec --clean --distpath dist/
         timeout-minutes: 10
 
-      - name: Zip macOS app
+      - name: Prepare macOS artifact
         if: matrix.os == 'macos-latest'
         run: |
           cd dist
-          zip -r "${{ matrix.asset_name }}" "GDrive Tools.app"
+          zip -r "GDrive-Tools-macOS.zip" "GDrive Tools.app"
+          rm -rf "GDrive Tools.app"
+
+      - name: Prepare Windows artifact
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd dist
+          ren "GDrive Tools.exe" "GDrive-Tools-Windows.exe"
+        shell: cmd
+
+      - name: Prepare Linux artifact
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd dist
+          mv "GDrive Tools" "GDrive-Tools-Linux"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: |
-            dist/${{ matrix.artifact_name }}
-            dist/${{ matrix.asset_name }}
+          name: GDrive-Tools-${{ matrix.platform }}
+          path: dist/GDrive-Tools-*
 
   release:
     needs: build
@@ -71,15 +80,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
+          merge-multiple: true
 
       - name: List artifacts
-        run: find artifacts -type f
+        run: ls -la artifacts/
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/**/*
+          files: artifacts/*
           draft: false
           prerelease: false
         env:
