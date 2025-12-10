@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable
 
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -17,6 +17,9 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QPushButton,
     QMessageBox,
+    QScrollArea,
+    QSplitter,
+    QSizePolicy,
 )
 
 from ..widgets import ResultsTable
@@ -42,6 +45,15 @@ class SearchTab(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(5, 5, 5, 5)
+
+        # Use a splitter so user can resize between options and results
+        splitter = QSplitter(Qt.Vertical)
+
+        # Top section: options in a scroll area
+        options_widget = QWidget()
+        options_layout = QVBoxLayout(options_widget)
+        options_layout.setContentsMargins(0, 0, 0, 0)
 
         # Search criteria section
         criteria_group = QGroupBox("Search Criteria")
@@ -94,7 +106,7 @@ class SearchTab(QWidget):
         self.max_results_spin.setValue(100)
         criteria_layout.addRow("Max Results:", self.max_results_spin)
 
-        layout.addWidget(criteria_group)
+        options_layout.addWidget(criteria_group)
 
         # Actions section
         actions_group = QGroupBox("Actions")
@@ -131,15 +143,26 @@ class SearchTab(QWidget):
         btn_layout.addStretch()
 
         actions_layout.addRow("", btn_layout)
-        layout.addWidget(actions_group)
+        options_layout.addWidget(actions_group)
 
-        # Results section
+        # Wrap options in scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(options_widget)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QScrollArea.NoFrame)
+        scroll_area.setMinimumHeight(200)
+        scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        splitter.addWidget(scroll_area)
+
+        # Results section - should expand
         results_group = QGroupBox("Results")
         results_layout = QVBoxLayout(results_group)
 
         self.results_table = ResultsTable()
         self.results_table.selectionChanged.connect(self._update_action_buttons)
-        results_layout.addWidget(self.results_table)
+        self.results_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        results_layout.addWidget(self.results_table, 1)  # stretch factor 1
 
         # Result action buttons
         result_btn_layout = QHBoxLayout()
@@ -161,7 +184,15 @@ class SearchTab(QWidget):
         result_btn_layout.addStretch()
         results_layout.addLayout(result_btn_layout)
 
-        layout.addWidget(results_group)
+        results_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        splitter.addWidget(results_group)
+
+        # Set initial splitter sizes (options smaller, results larger)
+        splitter.setSizes([250, 400])
+        splitter.setStretchFactor(0, 0)  # Options don't stretch
+        splitter.setStretchFactor(1, 1)  # Results stretch
+
+        layout.addWidget(splitter, 1)
 
     def _get_file_types(self):
         """Get selected file types."""

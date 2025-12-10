@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QCheckBox,
     QAbstractItemView,
+    QSizePolicy,
 )
 
 
@@ -25,6 +26,9 @@ class ResultsTable(QWidget):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self._results: List[Dict] = []
+
+        # Make the widget expand
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -39,6 +43,7 @@ class ResultsTable(QWidget):
         self.table.setHorizontalHeaderLabels(["", "Name", "Type", "Modified", "Drive"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setAlternatingRowColors(True)
+        self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Column sizing
         header = self.table.horizontalHeader()
@@ -49,7 +54,7 @@ class ResultsTable(QWidget):
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Drive
         self.table.setColumnWidth(0, 30)
 
-        layout.addWidget(self.table)
+        layout.addWidget(self.table, 1)  # stretch factor 1
 
         # Selection buttons
         btn_layout = QHBoxLayout()
