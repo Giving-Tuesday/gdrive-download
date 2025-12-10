@@ -15,6 +15,8 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QAbstractItemView,
     QSizePolicy,
+    QDialog,
+    QDialogButtonBox,
 )
 
 
@@ -67,6 +69,12 @@ class ResultsTable(QWidget):
         btn_layout.addWidget(self.deselect_all_btn)
 
         btn_layout.addStretch()
+
+        self.expand_btn = QPushButton("Expand ⤢")
+        self.expand_btn.clicked.connect(self._show_expanded_dialog)
+        self.expand_btn.setEnabled(False)
+        btn_layout.addWidget(self.expand_btn)
+
         layout.addLayout(btn_layout)
 
     def populate(self, results: List[Dict]):
@@ -99,6 +107,7 @@ class ResultsTable(QWidget):
             self.table.setItem(row, 4, QTableWidgetItem(drive))
 
         self.count_label.setText(f"{len(results)} file(s) found")
+        self.expand_btn.setEnabled(len(results) > 0)
         self.selectionChanged.emit()
 
     def _mime_to_display(self, mime_type: str) -> str:
@@ -118,6 +127,7 @@ class ResultsTable(QWidget):
         self._results = []
         self.table.setRowCount(0)
         self.count_label.setText("No results")
+        self.expand_btn.setEnabled(False)
         self.selectionChanged.emit()
 
     def select_all(self):
@@ -164,3 +174,158 @@ class ResultsTable(QWidget):
         self.table.setEnabled(enabled)
         self.select_all_btn.setEnabled(enabled)
         self.deselect_all_btn.setEnabled(enabled)
+        self.expand_btn.setEnabled(enabled and self.has_results())
+
+    def _show_expanded_dialog(self):
+        """Show results in an expanded modal dialog."""
+        dialog = ExpandedResultsDialog(self._results, self._get_checked_rows(), self)
+        if dialog.exec_() == QDialog.Accepted:
+            # Sync checkbox state back from dialog
+            checked_rows = dialog.get_checked_rows()
+            for row in range(self.table.rowCount()):
+                checkbox = self.table.cellWidget(row, 0)
+                if checkbox:
+                    checkbox.setChecked(row in checked_rows)
+
+    def _get_checked_rows(self) -> set:
+        """Get set of checked row indices."""
+        checked = set()
+        for row in range(self.table.rowCount()):
+            checkbox = self.table.cellWidget(row, 0)
+            if checkbox and checkbox.isChecked():
+                checked.add(row)
+        return checked
+
+
+class ExpandedResultsDialog(QDialog):
+    """Modal dialog showing results in a larger view."""
+
+    def __init__(
+        self,
+        results: List[Dict],
+        checked_rows: set,
+        parent: Optional[QWidget] = None,
+    ):
+        super().__init__(parent)
+        self._results = results
+        self._checked_rows = checked_rows.copy()
+
+        self.setWindowTitle(f"Search Results ({len(results)} files)")
+        self.setMinimumSize(900, 600)
+        self.resize(1000, 700)
+
+        layout = QVBoxLayout(self)
+
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["", "Name", "Type", "Modified", "Drive"])
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setAlternatingRowColors(True)
+
+        # Column sizing
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.table.setColumnWidth(0, 30)
+
+        self._populate_table()
+        layout.addWidget(self.table, 1)
+
+        # Selection buttons row
+        btn_layout = QHBoxLayout()
+        select_all_btn = QPushButton("Select All")
+        select_all_btn.clicked.connect(self._select_all)
+        btn_layout.addWidget(select_all_btn)
+
+        deselect_all_btn = QPushButton("Deselect All")
+        deselect_all_btn.clicked.connect(self._deselect_all)
+        btn_layout.addWidget(deselect_all_btn)
+
+        btn_layout.addStretch()
+
+        self.selection_label = QLabel()
+        self._update_selection_label()
+        btn_layout.addWidget(self.selection_label)
+
+        layout.addLayout(btn_layout)
+
+        # Dialog buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def _populate_table(self):
+        """Populate the table with results."""
+        mime_map = {
+            "application/vnd.google-apps.document": "Document",
+            "application/vnd.google-apps.spreadsheet": "Spreadsheet",
+            "application/vnd.google-apps.presentation": "Presentation",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel",
+            "application/pdf": "PDF",
+        }
+
+        self.table.setRowCount(len(self._results))
+        for row, item in enumerate(self._results):
+            # Checkbox
+            checkbox = QCheckBox()
+            checkbox.setChecked(row in self._checked_rows)
+            checkbox.stateChanged.connect(self._on_checkbox_changed)
+            self.table.setCellWidget(row, 0, checkbox)
+
+            # Name
+            self.table.setItem(row, 1, QTableWidgetItem(item.get("name", "")))
+
+            # Type
+            mime_type = item.get("mimeType", "")
+            type_display = mime_map.get(
+                mime_type, mime_type.split("/")[-1] if "/" in mime_type else mime_type
+            )
+            self.table.setItem(row, 2, QTableWidgetItem(type_display))
+
+            # Modified date
+            modified = item.get("modifiedTime", "")[:10] if item.get("modifiedTime") else ""
+            self.table.setItem(row, 3, QTableWidgetItem(modified))
+
+            # Drive name
+            drive = item.get("drive", "My Drive")
+            self.table.setItem(row, 4, QTableWidgetItem(drive))
+
+    def _on_checkbox_changed(self):
+        """Update checked rows set when checkbox changes."""
+        self._checked_rows = set()
+        for row in range(self.table.rowCount()):
+            checkbox = self.table.cellWidget(row, 0)
+            if checkbox and checkbox.isChecked():
+                self._checked_rows.add(row)
+        self._update_selection_label()
+
+    def _update_selection_label(self):
+        """Update the selection count label."""
+        count = len(self._checked_rows)
+        self.selection_label.setText(f"{count} of {len(self._results)} selected")
+
+    def _select_all(self):
+        """Select all rows."""
+        for row in range(self.table.rowCount()):
+            checkbox = self.table.cellWidget(row, 0)
+            if checkbox:
+                checkbox.setChecked(True)
+
+    def _deselect_all(self):
+        """Deselect all rows."""
+        for row in range(self.table.rowCount()):
+            checkbox = self.table.cellWidget(row, 0)
+            if checkbox:
+                checkbox.setChecked(False)
+
+    def get_checked_rows(self) -> set:
+        """Get set of checked row indices."""
+        return self._checked_rows.copy()
