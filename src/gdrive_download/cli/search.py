@@ -150,8 +150,10 @@ def search(
     """
     # Setup configuration
     config = GlobalConfig()
-    config.downloader.credentials_file = Path(credentials)
-    config.downloader.token_file = Path("token.pickle")
+    credentials_path = Path(credentials)
+    config.downloader.credentials_file = credentials_path
+    # Store token in same directory as credentials
+    config.downloader.token_file = credentials_path.parent / "token.pickle"
     
     # Determine output directory
     if output_dir:
