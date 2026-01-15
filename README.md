@@ -40,9 +40,42 @@ Download the latest release for your platform from the [Releases page](https://g
 
 ---
 
-## Command-Line Installation (For Developers)
+## Command-Line Installation
 
-### Prerequisites
+### Quick Install with uv (Recommended)
+
+The fastest way to install the CLI tools is using [uv](https://docs.astral.sh/uv/):
+
+```bash
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install gdrive-download as a tool
+uv tool install git+https://github.com/givingtuesday/gdrive-download.git
+
+# The commands are now available globally:
+gdrive-search --help
+gdrive-download --help
+gdrive-manage --help
+```
+
+To update to the latest version:
+
+```bash
+uv tool upgrade gdrive-download
+```
+
+To uninstall:
+
+```bash
+uv tool uninstall gdrive-download
+```
+
+### Manual Installation (For Development)
+
+If you want to modify the code or contribute to development:
+
+#### Prerequisites
 
 Before you begin, you'll need:
 
@@ -50,13 +83,13 @@ Before you begin, you'll need:
 2. **Git** - For cloning the repository
 3. **Google Drive API credentials** - See [Getting Google API Credentials](#getting-google-api-credentials) below
 
-### Step 1: Open Your Terminal
+#### Step 1: Open Your Terminal
 
 - **macOS**: Press `Cmd + Space`, type "Terminal", and press Enter
 - **Windows**: Press `Win + R`, type "cmd", and press Enter (or use PowerShell)
 - **Linux**: Press `Ctrl + Alt + T` or find Terminal in your applications
 
-### Step 2: Clone the Repository
+#### Step 2: Clone the Repository
 
 ```bash
 # Navigate to where you want to put the project
@@ -69,7 +102,7 @@ git clone https://github.com/givingtuesday/gdrive-download.git
 cd gdrive-download
 ```
 
-### Step 3: Set Up Python Environment
+#### Step 3: Set Up Python Environment
 
 ```bash
 # Create a virtual environment
@@ -86,11 +119,11 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-### Step 4: Add Your Google Credentials
+#### Step 4: Add Your Google Credentials
 
 Copy your `credentials.json` file (see [Getting Google API Credentials](#getting-google-api-credentials)) into the `gdrive-download` folder.
 
-### Step 5: First Run (Authentication)
+#### Step 5: First Run (Authentication)
 
 The first time you run a command, a browser window will open asking you to authorize access to your Google Drive. After you approve, a `token.pickle` file will be created to remember your authorization.
 
