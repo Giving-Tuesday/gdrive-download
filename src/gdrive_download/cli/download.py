@@ -57,8 +57,14 @@ def main(folder_url, output_dir, documents_subdir, markdown_subdir, credentials,
         # Override with CLI arguments
         config.downloader.output_dir = documents_dir
         if credentials:
-            config.downloader.credentials_file = Path(credentials)
-        
+            credentials_path = Path(credentials)
+            config.downloader.credentials_file = credentials_path
+            # Store token in same directory as credentials
+            config.downloader.token_file = credentials_path.parent / "token.pickle"
+        elif config.downloader.credentials_file:
+            # Use token file next to default credentials
+            config.downloader.token_file = config.downloader.credentials_file.parent / "token.pickle"
+
         # Initialize downloader
         downloader = GoogleDriveDownloader(config.downloader)
         

@@ -1,3 +1,8 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -30,7 +35,8 @@ MANIFEST
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
-*.spec
+# Keep packaging/*.spec but ignore auto-generated ones in root
+/*.spec
 
 # Installer logs
 pip-log.txt
@@ -174,6 +180,9 @@ aar_data/
 # Search output directories (created by gdrive-search)
 search_*/
 
+# Download output directories (created by gdrive-download)
+gdrive_folder_*/
+
 # Test output directories
 Test_*/
 
@@ -186,3 +195,8 @@ uv.lock
 
 # Old/backup virtual environments
 .venv-old/
+
+# PyInstaller build artifacts
+dist/
+build/
+*.spec.bak

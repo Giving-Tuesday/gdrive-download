@@ -1,6 +1,6 @@
 # Google Drive Download Tools
 
-A Python toolkit for searching, downloading, and organizing documents from Google Drive. The standout feature is the ability to **create shortcuts (aliases) in a Google Drive folder** that link to all files matching a search pattern—perfect for organizing scattered documents without moving or duplicating them.
+A Python toolkit for searching, downloading, and organizing documents from Google Drive. One simple but important ability is **creating shortcuts (aliases) in a Google Drive folder** that link to all files matching a search pattern—useful for organizing scattered documents without moving or duplicating them. This toolkit serves as the foundation for more advanced document analysis tools used in other GivingTuesday Data Commons projects.
 
 ## Key Features
 
@@ -10,23 +10,86 @@ A Python toolkit for searching, downloading, and organizing documents from Googl
 - **Track Relationships**: Maintain CSV records linking original Google Drive URLs to downloaded files
 - **Filter by Date**: Find files modified within a time range (last 7 days, since a specific date, etc.)
 
-## Quick Start for New Users
+## Desktop Application (GUI)
 
-### Prerequisites
+A simple graphical interface is available for users who prefer not to use the command line.
+
+### Download Pre-Built Application
+
+Download the latest release for your platform from the [Releases page](https://github.com/givingtuesday/gdrive-download/releases):
+
+| Platform | Download |
+|----------|----------|
+| macOS | `GDrive Tools.app` (in .zip) |
+| Windows | `GDrive Tools.exe` |
+| Linux | `GDrive Tools` |
+
+### First-Time Setup
+
+1. **Get Google API credentials** (see [Getting Google API Credentials](#getting-google-api-credentials))
+2. **Place `credentials.json`** in:
+   - **Windows**: `%APPDATA%\gdrive-download\`
+   - **macOS**: `~/Library/Application Support/gdrive-download/`
+   - **Linux**: `~/.config/gdrive-download/`
+3. **Launch the application** and use the Browse button to select your credentials if needed
+
+### First Run Notes
+
+- **macOS**: Right-click → Open → Open (to bypass Gatekeeper for unsigned apps)
+- **Windows**: Click "More info" → "Run anyway" if SmartScreen appears
+
+---
+
+## Command-Line Installation
+
+### Quick Install with uv (Recommended)
+
+The fastest way to install the CLI tools is using [uv](https://docs.astral.sh/uv/):
+
+```bash
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install gdrive-download as a tool
+uv tool install git+https://github.com/givingtuesday/gdrive-download.git
+
+# The commands are now available globally:
+gdrive-search --help
+gdrive-download --help
+gdrive-manage --help
+```
+
+To update to the latest version:
+
+```bash
+uv tool upgrade gdrive-download
+```
+
+To uninstall:
+
+```bash
+uv tool uninstall gdrive-download
+```
+
+### Manual Installation (For Development)
+
+If you want to modify the code or contribute to development:
+
+#### Prerequisites
 
 Before you begin, you'll need:
 
-1. **Python 3.8 or higher** - Check with `python --version` in your terminal
+1. **Python 3.9 or higher** - Check with `python --version` in your terminal
 2. **Git** - For cloning the repository
 3. **Google Drive API credentials** - See [Getting Google API Credentials](#getting-google-api-credentials) below
 
-### Step 1: Open Your Terminal
+#### Step 1: Open Your Terminal
 
 - **macOS**: Press `Cmd + Space`, type "Terminal", and press Enter
 - **Windows**: Press `Win + R`, type "cmd", and press Enter (or use PowerShell)
 - **Linux**: Press `Ctrl + Alt + T` or find Terminal in your applications
 
-### Step 2: Clone the Repository
+#### Step 2: Clone the Repository
 
 ```bash
 # Navigate to where you want to put the project
@@ -39,7 +102,7 @@ git clone https://github.com/givingtuesday/gdrive-download.git
 cd gdrive-download
 ```
 
-### Step 3: Set Up Python Environment
+#### Step 3: Set Up Python Environment
 
 ```bash
 # Create a virtual environment
@@ -56,11 +119,11 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-### Step 4: Add Your Google Credentials
+#### Step 4: Add Your Google Credentials
 
 Copy your `credentials.json` file (see [Getting Google API Credentials](#getting-google-api-credentials)) into the `gdrive-download` folder.
 
-### Step 5: First Run (Authentication)
+#### Step 5: First Run (Authentication)
 
 The first time you run a command, a browser window will open asking you to authorize access to your Google Drive. After you approve, a `token.pickle` file will be created to remember your authorization.
 
@@ -71,9 +134,9 @@ gdrive-search -p "test*" --no-download
 
 ---
 
-## Creating Shortcuts (The Main Feature)
+## Creating Shortcuts
 
-The most powerful feature is creating **shortcuts** (also called aliases or links) in a Google Drive folder. This lets you:
+One simple but important capability is creating **shortcuts** (also called aliases or links) in a Google Drive folder. This lets you:
 
 - Collect related documents from across multiple shared drives into one folder
 - Organize files without moving or duplicating them
