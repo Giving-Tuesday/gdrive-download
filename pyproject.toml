@@ -36,6 +36,7 @@ dependencies = [
     "rich>=13.0.0",
     "pathspec>=0.11.0",
     "PyQt5>=5.15.0",
+    "markdown-it-py>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -63,6 +64,7 @@ Homepage = "https://github.com/givingtuesday/gdrive-download"
 gdrive-download = "gdrive_download.cli.download:main"
 gdrive-manage = "gdrive_download.cli.manage:main"
 gdrive-search = "gdrive_download.cli.search:search"
+gdrive-upload = "gdrive_download.cli.upload:upload"
 
 [project.gui-scripts]
 gdrive-gui = "gdrive_download.gui:main"
