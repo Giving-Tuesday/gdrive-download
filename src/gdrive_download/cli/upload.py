@@ -267,5 +267,169 @@ def upload(
     console.print(f"\n[bold green]Upload complete![/bold green]")
 
 
+@click.command()
+@click.option('-f', '--file', 'markdown_file', required=True, type=click.Path(exists=True),
+              help='Markdown file to write')
+@click.option('--doc-url', 'doc_url',
+              help='Google Doc URL (may include tab ID, e.g., ?tab=t.xyz)')
+@click.option('--doc-id', 'doc_id',
+              help='Google Doc document ID (alternative to --doc-url)')
+@click.option('--tab-id', 'tab_id',
+              help='Tab ID to write to (default: first tab)')
+@click.option('-c', '--credentials', type=click.Path(exists=True),
+              default='credentials.json',
+              help='Google API credentials file (default: credentials.json)')
+@click.option('--append/--replace', 'append_mode', default=True,
+              help='Append to existing content (default) or replace it')
+@click.option('--force/--no-force', 'force', default=False,
+              help='Skip confirmation prompt')
+def write_to_doc(
+    markdown_file: str,
+    doc_url: Optional[str],
+    doc_id: Optional[str],
+    tab_id: Optional[str],
+    credentials: str,
+    append_mode: bool,
+    force: bool
+):
+    """Write markdown content to a tab in an existing Google Doc.
+
+    This command writes the contents of a markdown file to a specific tab
+    in an existing Google Document, preserving formatting.
+
+    SAFETY FEATURES:
+    - By default, appends to existing content (use --replace to clear first)
+    - Shows preview of existing content before writing
+    - Requires confirmation unless --force is specified
+
+    Examples:
+
+    \b
+    # Write to first tab of a document (append mode)
+    gdrive-upload-tab -f notes.md --doc-id 1ABC123XYZ
+
+    \b
+    # Write to specific tab using URL with tab parameter
+    gdrive-upload-tab -f notes.md --doc-url "https://docs.google.com/document/d/1ABC123/edit?tab=t.0"
+
+    \b
+    # Replace existing content in tab
+    gdrive-upload-tab -f notes.md --doc-id 1ABC123 --replace
+
+    \b
+    # Skip confirmation prompt
+    gdrive-upload-tab -f notes.md --doc-id 1ABC123 --force
+    """
+    # Validate document specification
+    if not doc_url and not doc_id:
+        raise click.UsageError("Either --doc-url or --doc-id is required")
+
+    if doc_url and doc_id:
+        raise click.UsageError("Specify either --doc-url or --doc-id, not both")
+
+    # Setup configuration
+    config = GlobalConfig()
+    credentials_path = Path(credentials)
+    config.downloader.credentials_file = credentials_path
+    config.downloader.token_file = credentials_path.parent / "token.pickle"
+
+    console.print(f"[bold blue]Preparing to write markdown to Google Doc[/bold blue]")
+
+    # Initialize uploader
+    try:
+        uploader = GoogleDriveUploader(config.downloader)
+    except ImportError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise click.Abort()
+    except FileNotFoundError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise click.Abort()
+
+    # Extract document and tab IDs
+    target_doc_id = doc_id
+    target_tab_id = tab_id
+
+    if doc_url:
+        try:
+            target_doc_id, url_tab_id = uploader.extract_doc_and_tab_id(doc_url)
+            # URL tab ID takes precedence if not explicitly specified
+            if not target_tab_id and url_tab_id:
+                target_tab_id = url_tab_id
+        except ValueError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            raise click.Abort()
+
+    # Get document and tab info
+    console.print(f"[blue]Verifying document access...[/blue]")
+    try:
+        tab_info = uploader.get_tab_info(target_doc_id, target_tab_id)
+        console.print(f"[green]Document found[/green]")
+        console.print(f"  Tab: {tab_info['title']} (ID: {tab_info['id']})")
+    except ValueError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise click.Abort()
+
+    # Get existing content preview
+    existing_preview = uploader.get_tab_content_preview(
+        target_doc_id, tab_info['id'], max_chars=300
+    )
+
+    # Read markdown file
+    markdown_path = Path(markdown_file)
+    with open(markdown_path, 'r', encoding='utf-8') as f:
+        markdown_content = f.read()
+
+    # Display operation summary
+    console.print()
+    mode_str = "[yellow]APPEND[/yellow]" if append_mode else "[red]REPLACE[/red]"
+    console.print(f"[bold]Operation:[/bold] {mode_str} mode")
+    console.print(f"[bold]File:[/bold] {markdown_path.name} ({len(markdown_content)} chars)")
+    console.print()
+
+    # Show existing content
+    if existing_preview and existing_preview != "(empty)":
+        console.print("[bold]Existing tab content:[/bold]")
+        console.print(f"[dim]{existing_preview}[/dim]")
+        console.print()
+
+        if not append_mode:
+            console.print("[yellow]⚠ WARNING: --replace will DELETE all existing content![/yellow]")
+            console.print()
+
+    # Show markdown preview
+    preview_lines = markdown_content[:500]
+    if len(markdown_content) > 500:
+        preview_lines += "..."
+    console.print("[bold]Markdown to write:[/bold]")
+    console.print(f"[dim]{preview_lines}[/dim]")
+    console.print()
+
+    # Confirm unless --force
+    if not force:
+        action = "replace content in" if not append_mode else "append to"
+        if not Confirm.ask(f"Proceed to {action} tab '{tab_info['title']}'?"):
+            console.print("[yellow]Operation cancelled.[/yellow]")
+            return
+
+    # Perform write
+    console.print(f"[blue]Writing to document...[/blue]")
+
+    result = uploader.write_to_tab(
+        target_doc_id,
+        markdown_content,
+        tab_info['id'],
+        replace=not append_mode
+    )
+
+    # Display result
+    if result['status'] == 'success':
+        console.print(f"[bold green]✓ {result['message']}[/bold green]")
+        if result.get('webViewLink'):
+            console.print(f"[blue]View: {result['webViewLink']}[/blue]")
+    else:
+        console.print(f"[red]✗ Error: {result['message']}[/red]")
+        raise click.Abort()
+
+
 if __name__ == '__main__':
     upload()

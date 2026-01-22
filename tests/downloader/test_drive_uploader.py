@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch, mock_open
 
 from gdrive_download.config import DownloaderConfig
-from gdrive_download.downloader.drive_uploader import GoogleDriveUploader
+from gdrive_download.downloader.drive_uploader import GoogleDriveUploader, MarkdownToDocsConverter
 
 
 @pytest.fixture
@@ -67,11 +67,23 @@ def mock_uploader(mock_config):
         mock_flow_instance.run_local_server.return_value = Mock(valid=True)
         mock_flow.from_client_secrets_file.return_value = mock_flow_instance
 
-        mock_service = Mock()
-        mock_build.return_value = mock_service
+        mock_drive_service = Mock()
+        mock_docs_service = Mock()
+
+        # Return different services based on API name
+        def build_side_effect(api_name, version, credentials):
+            if api_name == 'drive':
+                return mock_drive_service
+            elif api_name == 'docs':
+                return mock_docs_service
+            return Mock()
+
+        mock_build.side_effect = build_side_effect
 
         uploader = GoogleDriveUploader(mock_config)
-        uploader._mock_service = mock_service  # Store for test access
+        uploader._mock_service = mock_drive_service  # Store for test access (backwards compat)
+        uploader.drive_service = mock_drive_service
+        uploader.docs_service = mock_docs_service
 
         yield uploader
 
@@ -91,7 +103,10 @@ class TestGoogleDriveUploaderInit:
         uploader = GoogleDriveUploader(mock_config)
 
         assert uploader.service is not None
-        mock_build.assert_called_once_with('drive', 'v3', credentials=mock_flow_instance.run_local_server.return_value)
+        assert uploader.drive_service is not None
+        assert uploader.docs_service is not None
+        # build is called twice: once for Drive API, once for Docs API
+        assert mock_build.call_count == 2
 
     @patch('gdrive_download.downloader.drive_uploader.InstalledAppFlow')
     @patch('gdrive_download.downloader.drive_uploader.build')
@@ -288,3 +303,273 @@ class TestUploadMultiple:
 
         assert len(results) == 3
         assert all(r['status'] == 'created' for r in results)
+
+
+class TestExtractDocAndTabId:
+    """Tests for extracting document and tab IDs from URLs."""
+
+    def test_extract_doc_id_only(self, mock_uploader):
+        """Test extracting document ID from URL without tab."""
+        url = "https://docs.google.com/document/d/1ABC123XYZ/edit"
+        doc_id, tab_id = mock_uploader.extract_doc_and_tab_id(url)
+
+        assert doc_id == "1ABC123XYZ"
+        assert tab_id is None
+
+    def test_extract_doc_and_tab_from_query(self, mock_uploader):
+        """Test extracting both IDs from URL with query parameter."""
+        url = "https://docs.google.com/document/d/1ABC123/edit?tab=t.xyz789"
+        doc_id, tab_id = mock_uploader.extract_doc_and_tab_id(url)
+
+        assert doc_id == "1ABC123"
+        assert tab_id == "t.xyz789"
+
+    def test_extract_doc_and_tab_from_fragment(self, mock_uploader):
+        """Test extracting both IDs from URL with fragment."""
+        url = "https://docs.google.com/document/d/1ABC123/edit#tab=t.abc"
+        doc_id, tab_id = mock_uploader.extract_doc_and_tab_id(url)
+
+        assert doc_id == "1ABC123"
+        assert tab_id == "t.abc"
+
+    def test_extract_invalid_url(self, mock_uploader):
+        """Test extracting from invalid URL raises error."""
+        with pytest.raises(ValueError, match="Cannot extract document ID"):
+            mock_uploader.extract_doc_and_tab_id("https://google.com/not-a-doc")
+
+
+class TestMarkdownToDocsConverter:
+    """Tests for the MarkdownToDocsConverter class."""
+
+    def test_convert_heading(self):
+        """Test converting a markdown heading."""
+        converter = MarkdownToDocsConverter()
+        requests = converter.convert("# Hello World\n")
+
+        # Should have insertText and updateParagraphStyle
+        assert len(requests) >= 2
+        assert any('insertText' in r for r in requests)
+        assert any('updateParagraphStyle' in r for r in requests)
+
+        # Check the inserted text
+        insert_req = next(r for r in requests if 'insertText' in r)
+        assert 'Hello World' in insert_req['insertText']['text']
+
+        # Check heading style
+        style_req = next(r for r in requests if 'updateParagraphStyle' in r)
+        assert style_req['updateParagraphStyle']['paragraphStyle']['namedStyleType'] == 'HEADING_1'
+
+    def test_convert_paragraph_with_bold(self):
+        """Test converting a paragraph with bold text."""
+        converter = MarkdownToDocsConverter()
+        requests = converter.convert("This is **bold** text.\n")
+
+        # Should have insertText and updateTextStyle for bold
+        assert any('insertText' in r for r in requests)
+
+        # Check bold style was applied
+        bold_reqs = [r for r in requests if 'updateTextStyle' in r and r['updateTextStyle'].get('textStyle', {}).get('bold')]
+        assert len(bold_reqs) >= 1
+
+    def test_convert_bullet_list(self):
+        """Test converting a bullet list."""
+        converter = MarkdownToDocsConverter()
+        requests = converter.convert("- Item 1\n- Item 2\n")
+
+        # Should have insertText and createParagraphBullets
+        assert any('insertText' in r for r in requests)
+        assert any('createParagraphBullets' in r for r in requests)
+
+        bullet_req = next(r for r in requests if 'createParagraphBullets' in r)
+        assert 'BULLET' in bullet_req['createParagraphBullets']['bulletPreset']
+
+    def test_convert_with_tab_id(self):
+        """Test that tab ID is included in requests."""
+        converter = MarkdownToDocsConverter()
+        requests = converter.convert("# Test\n", tab_id="t.abc123")
+
+        # Check that tabId is in location/range
+        for req in requests:
+            if 'insertText' in req:
+                assert req['insertText']['location'].get('tabId') == 't.abc123'
+            elif 'updateParagraphStyle' in req:
+                assert req['updateParagraphStyle']['range'].get('tabId') == 't.abc123'
+
+    def test_convert_link(self):
+        """Test converting a link."""
+        converter = MarkdownToDocsConverter()
+        requests = converter.convert("Check [this link](https://example.com).\n")
+
+        # Should have link style
+        link_reqs = [r for r in requests if 'updateTextStyle' in r and 'link' in r['updateTextStyle'].get('textStyle', {})]
+        assert len(link_reqs) >= 1
+        assert link_reqs[0]['updateTextStyle']['textStyle']['link']['url'] == 'https://example.com'
+
+
+class TestWriteToTab:
+    """Tests for writing to document tabs."""
+
+    def test_get_tab_info(self, mock_uploader):
+        """Test getting tab information."""
+        mock_uploader.docs_service.documents().get().execute.return_value = {
+            'tabs': [{
+                'tabProperties': {
+                    'tabId': 't.0',
+                    'title': 'Main Tab',
+                    'index': 0
+                },
+                'documentTab': {
+                    'body': {
+                        'content': [
+                            {'endIndex': 100}
+                        ]
+                    }
+                }
+            }]
+        }
+
+        tab_info = mock_uploader.get_tab_info('doc123')
+
+        assert tab_info['id'] == 't.0'
+        assert tab_info['title'] == 'Main Tab'
+        assert tab_info['content_length'] == 100
+
+    def test_get_tab_info_specific_tab(self, mock_uploader):
+        """Test getting info for a specific tab."""
+        mock_uploader.docs_service.documents().get().execute.return_value = {
+            'tabs': [
+                {
+                    'tabProperties': {'tabId': 't.0', 'title': 'Tab One', 'index': 0},
+                    'documentTab': {'body': {'content': [{'endIndex': 50}]}}
+                },
+                {
+                    'tabProperties': {'tabId': 't.1', 'title': 'Tab Two', 'index': 1},
+                    'documentTab': {'body': {'content': [{'endIndex': 200}]}}
+                }
+            ]
+        }
+
+        tab_info = mock_uploader.get_tab_info('doc123', 't.1')
+
+        assert tab_info['id'] == 't.1'
+        assert tab_info['title'] == 'Tab Two'
+        assert tab_info['content_length'] == 200
+
+    def test_get_tab_info_not_found(self, mock_uploader):
+        """Test error when tab not found."""
+        mock_uploader.docs_service.documents().get().execute.return_value = {
+            'tabs': [{
+                'tabProperties': {'tabId': 't.0', 'title': 'Tab One', 'index': 0},
+                'documentTab': {'body': {'content': []}}
+            }]
+        }
+
+        with pytest.raises(ValueError, match="Tab not found"):
+            mock_uploader.get_tab_info('doc123', 't.nonexistent')
+
+    def test_write_to_tab_success(self, mock_uploader):
+        """Test successful write to tab."""
+        # Mock get_tab_info
+        mock_uploader.docs_service.documents().get().execute.return_value = {
+            'tabs': [{
+                'tabProperties': {'tabId': 't.0', 'title': 'Main', 'index': 0},
+                'documentTab': {'body': {'content': [{'endIndex': 1}]}}
+            }]
+        }
+
+        # Mock batchUpdate
+        mock_uploader.docs_service.documents().batchUpdate().execute.return_value = {}
+
+        result = mock_uploader.write_to_tab('doc123', '# Hello\n', 't.0', replace=True)
+
+        assert result['status'] == 'success'
+        assert 'webViewLink' in result
+        mock_uploader.docs_service.documents().batchUpdate.assert_called()
+
+    def test_write_to_tab_no_permission(self, mock_uploader):
+        """Test write fails without permission."""
+        from googleapiclient.errors import HttpError
+
+        mock_uploader.docs_service.documents().get().execute.return_value = {
+            'tabs': [{
+                'tabProperties': {'tabId': 't.0', 'title': 'Main', 'index': 0},
+                'documentTab': {'body': {'content': [{'endIndex': 1}]}}
+            }]
+        }
+
+        # Mock permission error
+        mock_response = Mock()
+        mock_response.status = 403
+        mock_uploader.docs_service.documents().batchUpdate().execute.side_effect = HttpError(
+            mock_response, b'Permission denied'
+        )
+
+        result = mock_uploader.write_to_tab('doc123', '# Hello\n')
+
+        assert result['status'] == 'error'
+        assert 'permission' in result['message'].lower()
+
+
+class TestGetTabContentPreview:
+    """Tests for getting tab content previews."""
+
+    def test_get_preview(self, mock_uploader):
+        """Test getting content preview."""
+        mock_uploader.docs_service.documents().get().execute.return_value = {
+            'tabs': [{
+                'tabProperties': {'tabId': 't.0', 'title': 'Main', 'index': 0},
+                'documentTab': {
+                    'body': {
+                        'content': [{
+                            'paragraph': {
+                                'elements': [{
+                                    'textRun': {'content': 'Hello World! This is test content.'}
+                                }]
+                            }
+                        }]
+                    }
+                }
+            }]
+        }
+
+        preview = mock_uploader.get_tab_content_preview('doc123')
+
+        assert 'Hello World' in preview
+
+    def test_get_preview_empty(self, mock_uploader):
+        """Test preview of empty tab."""
+        mock_uploader.docs_service.documents().get().execute.return_value = {
+            'tabs': [{
+                'tabProperties': {'tabId': 't.0', 'title': 'Main', 'index': 0},
+                'documentTab': {'body': {'content': []}}
+            }]
+        }
+
+        preview = mock_uploader.get_tab_content_preview('doc123')
+
+        assert preview == "(empty)"
+
+    def test_get_preview_truncated(self, mock_uploader):
+        """Test preview is truncated for long content."""
+        long_content = "A" * 1000
+        mock_uploader.docs_service.documents().get().execute.return_value = {
+            'tabs': [{
+                'tabProperties': {'tabId': 't.0', 'title': 'Main', 'index': 0},
+                'documentTab': {
+                    'body': {
+                        'content': [{
+                            'paragraph': {
+                                'elements': [{
+                                    'textRun': {'content': long_content}
+                                }]
+                            }
+                        }]
+                    }
+                }
+            }]
+        }
+
+        preview = mock_uploader.get_tab_content_preview('doc123', max_chars=100)
+
+        assert len(preview) <= 103  # 100 + "..."
+        assert preview.endswith("...")

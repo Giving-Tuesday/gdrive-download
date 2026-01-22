@@ -5,7 +5,7 @@ import os
 import pickle
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs
 
 from google.auth.transport.requests import Request
@@ -19,6 +19,466 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskPr
 
 from ..config import DownloaderConfig
 
+
+class MarkdownToDocsConverter:
+    """Converts markdown content to Google Docs API batchUpdate requests."""
+
+    # Named style types for headings
+    HEADING_STYLES = {
+        1: 'HEADING_1',
+        2: 'HEADING_2',
+        3: 'HEADING_3',
+        4: 'HEADING_4',
+        5: 'HEADING_5',
+        6: 'HEADING_6',
+    }
+
+    def __init__(self):
+        try:
+            from markdown_it import MarkdownIt
+            self.md = MarkdownIt("commonmark")
+        except ImportError:
+            raise ImportError("markdown-it-py is required")
+
+    def convert(self, markdown_content: str, tab_id: Optional[str] = None) -> List[dict]:
+        """Convert markdown to Google Docs API requests.
+
+        Args:
+            markdown_content: The markdown text to convert
+            tab_id: Optional tab ID to target
+
+        Returns:
+            List of batchUpdate request dicts
+        """
+        tokens = self.md.parse(markdown_content)
+        requests = []
+        current_index = 1  # Google Docs starts at index 1
+
+        # First pass: collect all text and structure
+        elements = self._parse_tokens(tokens)
+
+        # Second pass: generate requests
+        for element in elements:
+            elem_requests, new_index = self._generate_requests(
+                element, current_index, tab_id
+            )
+            requests.extend(elem_requests)
+            current_index = new_index
+
+        return requests
+
+    def _parse_tokens(self, tokens: list) -> List[dict]:
+        """Parse markdown-it tokens into structured elements."""
+        elements = []
+        i = 0
+
+        while i < len(tokens):
+            token = tokens[i]
+
+            if token.type == 'heading_open':
+                level = int(token.tag[1])  # h1 -> 1, h2 -> 2, etc.
+                # Next token should be inline with content
+                if i + 1 < len(tokens) and tokens[i + 1].type == 'inline':
+                    text, inline_styles = self._parse_inline(tokens[i + 1])
+                    elements.append({
+                        'type': 'heading',
+                        'level': level,
+                        'text': text + '\n',
+                        'styles': inline_styles
+                    })
+                i += 3  # Skip heading_open, inline, heading_close
+
+            elif token.type == 'paragraph_open':
+                if i + 1 < len(tokens) and tokens[i + 1].type == 'inline':
+                    text, inline_styles = self._parse_inline(tokens[i + 1])
+                    elements.append({
+                        'type': 'paragraph',
+                        'text': text + '\n',
+                        'styles': inline_styles
+                    })
+                i += 3  # Skip paragraph_open, inline, paragraph_close
+
+            elif token.type == 'bullet_list_open':
+                # Collect all list items
+                list_items = []
+                i += 1
+                while i < len(tokens) and tokens[i].type != 'bullet_list_close':
+                    if tokens[i].type == 'list_item_open':
+                        i += 1
+                        if i < len(tokens) and tokens[i].type == 'paragraph_open':
+                            i += 1
+                            if i < len(tokens) and tokens[i].type == 'inline':
+                                text, styles = self._parse_inline(tokens[i])
+                                list_items.append({'text': text, 'styles': styles})
+                            i += 2  # Skip inline and paragraph_close
+                        i += 1  # Skip list_item_close
+                    else:
+                        i += 1
+                elements.append({
+                    'type': 'bullet_list',
+                    'items': list_items
+                })
+                i += 1  # Skip bullet_list_close
+
+            elif token.type == 'ordered_list_open':
+                list_items = []
+                i += 1
+                while i < len(tokens) and tokens[i].type != 'ordered_list_close':
+                    if tokens[i].type == 'list_item_open':
+                        i += 1
+                        if i < len(tokens) and tokens[i].type == 'paragraph_open':
+                            i += 1
+                            if i < len(tokens) and tokens[i].type == 'inline':
+                                text, styles = self._parse_inline(tokens[i])
+                                list_items.append({'text': text, 'styles': styles})
+                            i += 2
+                        i += 1
+                    else:
+                        i += 1
+                elements.append({
+                    'type': 'ordered_list',
+                    'items': list_items
+                })
+                i += 1
+
+            elif token.type == 'fence':
+                # Code block
+                elements.append({
+                    'type': 'code_block',
+                    'text': token.content + '\n',
+                    'language': token.info
+                })
+                i += 1
+
+            elif token.type == 'hr':
+                elements.append({'type': 'hr'})
+                i += 1
+
+            else:
+                i += 1
+
+        return elements
+
+    def _parse_inline(self, token) -> Tuple[str, List[dict]]:
+        """Parse inline token and extract text with style ranges."""
+        if not token.children:
+            return token.content or '', []
+
+        text = ''
+        styles = []
+
+        for child in token.children:
+            start = len(text)
+
+            if child.type == 'text':
+                text += child.content
+            elif child.type == 'code_inline':
+                text += child.content
+                styles.append({
+                    'type': 'code',
+                    'start': start,
+                    'end': len(text)
+                })
+            elif child.type == 'strong_open':
+                # Find content until strong_close
+                pass  # Handled by tracking state
+            elif child.type == 'em_open':
+                pass
+            elif child.type == 'softbreak':
+                text += ' '
+            elif child.type == 'hardbreak':
+                text += '\n'
+            elif child.type == 'link_open':
+                # Get href from attrs
+                href = ''
+                if child.attrs:
+                    href = dict(child.attrs).get('href', '')
+                styles.append({
+                    'type': 'link_start',
+                    'start': len(text),
+                    'href': href
+                })
+            elif child.type == 'link_close':
+                # Find matching link_start and update end
+                for style in reversed(styles):
+                    if style.get('type') == 'link_start':
+                        style['type'] = 'link'
+                        style['end'] = len(text)
+                        break
+
+        # Handle bold/italic by re-parsing with state tracking
+        text, styles = self._parse_inline_with_state(token.children)
+
+        return text, styles
+
+    def _parse_inline_with_state(self, children: list) -> Tuple[str, List[dict]]:
+        """Parse inline children with state tracking for nested styles."""
+        text = ''
+        styles = []
+        bold_start = None
+        italic_start = None
+        link_start = None
+        link_href = None
+
+        for child in children:
+            if child.type == 'text':
+                text += child.content
+            elif child.type == 'code_inline':
+                start = len(text)
+                text += child.content
+                styles.append({'type': 'code', 'start': start, 'end': len(text)})
+            elif child.type == 'strong_open':
+                bold_start = len(text)
+            elif child.type == 'strong_close':
+                if bold_start is not None:
+                    styles.append({'type': 'bold', 'start': bold_start, 'end': len(text)})
+                    bold_start = None
+            elif child.type == 'em_open':
+                italic_start = len(text)
+            elif child.type == 'em_close':
+                if italic_start is not None:
+                    styles.append({'type': 'italic', 'start': italic_start, 'end': len(text)})
+                    italic_start = None
+            elif child.type == 'link_open':
+                link_start = len(text)
+                if child.attrs:
+                    link_href = dict(child.attrs).get('href', '')
+            elif child.type == 'link_close':
+                if link_start is not None and link_href:
+                    styles.append({
+                        'type': 'link',
+                        'start': link_start,
+                        'end': len(text),
+                        'href': link_href
+                    })
+                    link_start = None
+                    link_href = None
+            elif child.type == 'softbreak':
+                text += ' '
+            elif child.type == 'hardbreak':
+                text += '\n'
+
+        return text, styles
+
+    def _generate_requests(
+        self,
+        element: dict,
+        start_index: int,
+        tab_id: Optional[str]
+    ) -> Tuple[List[dict], int]:
+        """Generate API requests for a single element.
+
+        Returns:
+            Tuple of (requests list, new current index)
+        """
+        requests = []
+        location_base = {'index': start_index}
+        if tab_id:
+            location_base['tabId'] = tab_id
+
+        if element['type'] == 'heading':
+            text = element['text']
+            end_index = start_index + len(text)
+
+            # Insert text
+            requests.append({
+                'insertText': {
+                    'location': dict(location_base),
+                    'text': text
+                }
+            })
+
+            # Apply heading style
+            range_base = {
+                'startIndex': start_index,
+                'endIndex': end_index - 1  # Exclude newline from style
+            }
+            if tab_id:
+                range_base['tabId'] = tab_id
+
+            requests.append({
+                'updateParagraphStyle': {
+                    'range': range_base,
+                    'paragraphStyle': {
+                        'namedStyleType': self.HEADING_STYLES.get(element['level'], 'HEADING_1')
+                    },
+                    'fields': 'namedStyleType'
+                }
+            })
+
+            # Apply inline styles
+            requests.extend(self._generate_style_requests(
+                element.get('styles', []), start_index, tab_id
+            ))
+
+            return requests, end_index
+
+        elif element['type'] == 'paragraph':
+            text = element['text']
+            end_index = start_index + len(text)
+
+            requests.append({
+                'insertText': {
+                    'location': dict(location_base),
+                    'text': text
+                }
+            })
+
+            # Apply inline styles
+            requests.extend(self._generate_style_requests(
+                element.get('styles', []), start_index, tab_id
+            ))
+
+            return requests, end_index
+
+        elif element['type'] in ('bullet_list', 'ordered_list'):
+            items = element['items']
+            text = '\n'.join(item['text'] for item in items) + '\n'
+            end_index = start_index + len(text)
+
+            # Insert all list text
+            requests.append({
+                'insertText': {
+                    'location': dict(location_base),
+                    'text': text
+                }
+            })
+
+            # Apply bullet/number formatting
+            range_base = {
+                'startIndex': start_index,
+                'endIndex': end_index - 1
+            }
+            if tab_id:
+                range_base['tabId'] = tab_id
+
+            bullet_preset = (
+                'BULLET_DISC_CIRCLE_SQUARE' if element['type'] == 'bullet_list'
+                else 'NUMBERED_DECIMAL_ALPHA_ROMAN'
+            )
+
+            requests.append({
+                'createParagraphBullets': {
+                    'range': range_base,
+                    'bulletPreset': bullet_preset
+                }
+            })
+
+            # Apply inline styles for each item
+            current = start_index
+            for item in items:
+                requests.extend(self._generate_style_requests(
+                    item.get('styles', []), current, tab_id
+                ))
+                current += len(item['text']) + 1  # +1 for newline
+
+            return requests, end_index
+
+        elif element['type'] == 'code_block':
+            text = element['text']
+            end_index = start_index + len(text)
+
+            requests.append({
+                'insertText': {
+                    'location': dict(location_base),
+                    'text': text
+                }
+            })
+
+            # Apply monospace font
+            range_base = {
+                'startIndex': start_index,
+                'endIndex': end_index
+            }
+            if tab_id:
+                range_base['tabId'] = tab_id
+
+            requests.append({
+                'updateTextStyle': {
+                    'range': range_base,
+                    'textStyle': {
+                        'weightedFontFamily': {
+                            'fontFamily': 'Courier New'
+                        }
+                    },
+                    'fields': 'weightedFontFamily'
+                }
+            })
+
+            return requests, end_index
+
+        elif element['type'] == 'hr':
+            # Insert a horizontal line using repeated dashes
+            text = '─' * 50 + '\n'
+            end_index = start_index + len(text)
+
+            requests.append({
+                'insertText': {
+                    'location': dict(location_base),
+                    'text': text
+                }
+            })
+
+            return requests, end_index
+
+        return requests, start_index
+
+    def _generate_style_requests(
+        self,
+        styles: List[dict],
+        base_index: int,
+        tab_id: Optional[str]
+    ) -> List[dict]:
+        """Generate text style requests for inline formatting."""
+        requests = []
+
+        for style in styles:
+            range_base = {
+                'startIndex': base_index + style['start'],
+                'endIndex': base_index + style['end']
+            }
+            if tab_id:
+                range_base['tabId'] = tab_id
+
+            if style['type'] == 'bold':
+                requests.append({
+                    'updateTextStyle': {
+                        'range': range_base,
+                        'textStyle': {'bold': True},
+                        'fields': 'bold'
+                    }
+                })
+            elif style['type'] == 'italic':
+                requests.append({
+                    'updateTextStyle': {
+                        'range': range_base,
+                        'textStyle': {'italic': True},
+                        'fields': 'italic'
+                    }
+                })
+            elif style['type'] == 'code':
+                requests.append({
+                    'updateTextStyle': {
+                        'range': range_base,
+                        'textStyle': {
+                            'weightedFontFamily': {'fontFamily': 'Courier New'}
+                        },
+                        'fields': 'weightedFontFamily'
+                    }
+                })
+            elif style['type'] == 'link':
+                requests.append({
+                    'updateTextStyle': {
+                        'range': range_base,
+                        'textStyle': {
+                            'link': {'url': style['href']}
+                        },
+                        'fields': 'link'
+                    }
+                })
+
+        return requests
+
 try:
     from markdown_it import MarkdownIt
     MARKDOWN_IT_AVAILABLE = True
@@ -29,7 +489,10 @@ except ImportError:
 class GoogleDriveUploader:
     """Uploads markdown files as native Google Docs to Google Drive."""
 
-    SCOPES = ['https://www.googleapis.com/auth/drive']
+    SCOPES = [
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/documents'
+    ]
 
     # Google Docs import limit (approximately 1.5MB for HTML)
     MAX_IMPORT_SIZE = 1.5 * 1024 * 1024  # 1.5 MB
@@ -37,6 +500,9 @@ class GoogleDriveUploader:
     def __init__(self, config: DownloaderConfig):
         self.config = config
         self.console = Console()
+        self.drive_service = None
+        self.docs_service = None
+        # Keep 'service' as alias for backwards compatibility
         self.service = None
         self._setup_service()
 
@@ -47,9 +513,10 @@ class GoogleDriveUploader:
             )
 
         self.md = MarkdownIt("commonmark", {"html": True, "typographer": True})
+        self.markdown_converter = MarkdownToDocsConverter()
 
     def _setup_service(self):
-        """Initialize Google Drive API service."""
+        """Initialize Google Drive and Docs API services."""
         creds = None
 
         if self.config.token_file and self.config.token_file.exists():
@@ -75,7 +542,10 @@ class GoogleDriveUploader:
                 with open(self.config.token_file, 'wb') as token:
                     pickle.dump(creds, token)
 
-        self.service = build('drive', 'v3', credentials=creds)
+        self.drive_service = build('drive', 'v3', credentials=creds)
+        self.docs_service = build('docs', 'v1', credentials=creds)
+        # Backwards compatibility alias
+        self.service = self.drive_service
 
     def extract_folder_id(self, folder_url: str) -> str:
         """Extract folder ID from Google Drive URL."""
@@ -88,6 +558,325 @@ class GoogleDriveUploader:
             return parse_qs(parsed.query)['id'][0]
 
         raise ValueError(f"Cannot extract folder ID from URL: {folder_url}")
+
+    def extract_doc_and_tab_id(self, doc_url: str) -> Tuple[str, Optional[str]]:
+        """Extract document ID and optional tab ID from a Google Doc URL.
+
+        Args:
+            doc_url: Google Doc URL, may include tab parameter
+
+        Returns:
+            Tuple of (document_id, tab_id) where tab_id may be None
+
+        Supported URL formats:
+            - https://docs.google.com/document/d/DOC_ID/edit
+            - https://docs.google.com/document/d/DOC_ID/edit?tab=t.TAB_ID
+            - https://docs.google.com/document/d/DOC_ID/edit#tab=t.TAB_ID
+        """
+        doc_id = None
+        tab_id = None
+
+        # Extract document ID
+        match = re.search(r'/document/d/([a-zA-Z0-9_-]+)', doc_url)
+        if match:
+            doc_id = match.group(1)
+        else:
+            raise ValueError(f"Cannot extract document ID from URL: {doc_url}")
+
+        # Extract tab ID from query string or fragment
+        parsed = urlparse(doc_url)
+
+        # Check query parameters (?tab=t.xxx)
+        query_params = parse_qs(parsed.query)
+        if 'tab' in query_params:
+            tab_id = query_params['tab'][0]
+
+        # Check fragment (#tab=t.xxx)
+        if not tab_id and parsed.fragment:
+            frag_match = re.search(r'tab=([^&]+)', parsed.fragment)
+            if frag_match:
+                tab_id = frag_match.group(1)
+
+        return doc_id, tab_id
+
+    def get_document_info(
+        self,
+        doc_id: str,
+        include_tabs: bool = True
+    ) -> Dict:
+        """Get document metadata including tab information.
+
+        Args:
+            doc_id: Google Doc document ID
+            include_tabs: Whether to include tab content
+
+        Returns:
+            Document metadata dict
+        """
+        try:
+            doc = self.docs_service.documents().get(
+                documentId=doc_id,
+                includeTabsContent=include_tabs
+            ).execute()
+            return doc
+        except HttpError as e:
+            if e.resp.status == 404:
+                raise ValueError(f"Document not found: {doc_id}")
+            elif e.resp.status == 403:
+                # Check if this is an API not enabled error
+                error_str = str(e)
+                if 'SERVICE_DISABLED' in error_str or 'has not been used' in error_str:
+                    raise ValueError(
+                        f"Google Docs API is not enabled for this project. "
+                        f"Enable it at: https://console.developers.google.com/apis/api/docs.googleapis.com"
+                    )
+                raise ValueError(f"No access to document: {doc_id}")
+            raise ValueError(f"Error accessing document: {e}")
+
+    def get_tab_info(self, doc_id: str, tab_id: Optional[str] = None) -> Dict:
+        """Get information about a specific tab or the first tab.
+
+        Args:
+            doc_id: Document ID
+            tab_id: Tab ID (None for first tab)
+
+        Returns:
+            Dict with tab info: id, title, content_length
+        """
+        doc = self.get_document_info(doc_id)
+        tabs = doc.get('tabs', [])
+
+        if not tabs:
+            raise ValueError("Document has no tabs")
+
+        if tab_id:
+            # Find specific tab
+            for tab in tabs:
+                props = tab.get('tabProperties', {})
+                if props.get('tabId') == tab_id:
+                    doc_tab = tab.get('documentTab', {})
+                    body = doc_tab.get('body', {})
+                    content = body.get('content', [])
+                    # Calculate content length from last element's endIndex
+                    end_index = 1
+                    if content:
+                        last_elem = content[-1]
+                        end_index = last_elem.get('endIndex', 1)
+                    return {
+                        'id': props.get('tabId'),
+                        'title': props.get('title', 'Untitled'),
+                        'index': props.get('index', 0),
+                        'content_length': end_index
+                    }
+            raise ValueError(f"Tab not found: {tab_id}")
+        else:
+            # Return first tab
+            first_tab = tabs[0]
+            props = first_tab.get('tabProperties', {})
+            doc_tab = first_tab.get('documentTab', {})
+            body = doc_tab.get('body', {})
+            content = body.get('content', [])
+            end_index = 1
+            if content:
+                last_elem = content[-1]
+                end_index = last_elem.get('endIndex', 1)
+            return {
+                'id': props.get('tabId'),
+                'title': props.get('title', 'Untitled'),
+                'index': props.get('index', 0),
+                'content_length': end_index
+            }
+
+    def get_tab_content_preview(
+        self,
+        doc_id: str,
+        tab_id: Optional[str] = None,
+        max_chars: int = 500
+    ) -> str:
+        """Get a text preview of tab content.
+
+        Args:
+            doc_id: Document ID
+            tab_id: Tab ID (None for first tab)
+            max_chars: Maximum characters to return
+
+        Returns:
+            Plain text preview of tab content
+        """
+        doc = self.get_document_info(doc_id)
+        tabs = doc.get('tabs', [])
+
+        target_tab = None
+        if tab_id:
+            for tab in tabs:
+                if tab.get('tabProperties', {}).get('tabId') == tab_id:
+                    target_tab = tab
+                    break
+        else:
+            target_tab = tabs[0] if tabs else None
+
+        if not target_tab:
+            return "(empty)"
+
+        doc_tab = target_tab.get('documentTab', {})
+        body = doc_tab.get('body', {})
+        content = body.get('content', [])
+
+        # Extract text from content elements
+        text_parts = []
+        for element in content:
+            if 'paragraph' in element:
+                para = element['paragraph']
+                for elem in para.get('elements', []):
+                    if 'textRun' in elem:
+                        text_parts.append(elem['textRun'].get('content', ''))
+
+        full_text = ''.join(text_parts).strip()
+        if len(full_text) > max_chars:
+            return full_text[:max_chars] + '...'
+        return full_text if full_text else "(empty)"
+
+    def write_to_tab(
+        self,
+        doc_id: str,
+        markdown_content: str,
+        tab_id: Optional[str] = None,
+        replace: bool = False
+    ) -> Dict[str, str]:
+        """Write markdown content to a specific tab in a document.
+
+        Args:
+            doc_id: Document ID
+            markdown_content: Markdown text to write
+            tab_id: Tab ID (None for first tab)
+            replace: If True, clear existing content first
+
+        Returns:
+            Dict with result info
+        """
+        result = {
+            'doc_id': doc_id,
+            'tab_id': tab_id,
+            'status': 'pending',
+            'message': '',
+            'webViewLink': None
+        }
+
+        try:
+            # Get tab info
+            tab_info = self.get_tab_info(doc_id, tab_id)
+            actual_tab_id = tab_info['id']
+            result['tab_id'] = actual_tab_id
+
+            requests = []
+
+            if replace:
+                # Delete existing content (keep index 1, the minimum)
+                if tab_info['content_length'] > 1:
+                    delete_range = {
+                        'startIndex': 1,
+                        'endIndex': tab_info['content_length'] - 1
+                    }
+                    if actual_tab_id:
+                        delete_range['tabId'] = actual_tab_id
+
+                    requests.append({
+                        'deleteContentRange': {
+                            'range': delete_range
+                        }
+                    })
+
+            # Convert markdown to API requests
+            insert_requests = self.markdown_converter.convert(
+                markdown_content,
+                actual_tab_id
+            )
+
+            # Adjust indices if not replacing (append mode)
+            if not replace and tab_info['content_length'] > 1:
+                # Insert at end of existing content
+                offset = tab_info['content_length'] - 1
+                for req in insert_requests:
+                    if 'insertText' in req:
+                        req['insertText']['location']['index'] += offset
+                    elif 'updateTextStyle' in req:
+                        req['updateTextStyle']['range']['startIndex'] += offset
+                        req['updateTextStyle']['range']['endIndex'] += offset
+                    elif 'updateParagraphStyle' in req:
+                        req['updateParagraphStyle']['range']['startIndex'] += offset
+                        req['updateParagraphStyle']['range']['endIndex'] += offset
+                    elif 'createParagraphBullets' in req:
+                        req['createParagraphBullets']['range']['startIndex'] += offset
+                        req['createParagraphBullets']['range']['endIndex'] += offset
+
+            requests.extend(insert_requests)
+
+            if not requests:
+                result['status'] = 'skipped'
+                result['message'] = 'No content to write'
+                return result
+
+            # Execute batch update
+            self.docs_service.documents().batchUpdate(
+                documentId=doc_id,
+                body={'requests': requests}
+            ).execute()
+
+            # Build web link
+            web_link = f"https://docs.google.com/document/d/{doc_id}/edit"
+            if actual_tab_id:
+                web_link += f"?tab={actual_tab_id}"
+
+            result['status'] = 'success'
+            result['message'] = f"Successfully wrote to tab '{tab_info['title']}'"
+            result['webViewLink'] = web_link
+
+        except HttpError as e:
+            result['status'] = 'error'
+            if e.resp.status == 403:
+                result['message'] = f"No write permission for document: {doc_id}"
+            else:
+                result['message'] = f"API error: {e}"
+        except ValueError as e:
+            result['status'] = 'error'
+            result['message'] = str(e)
+        except Exception as e:
+            result['status'] = 'error'
+            result['message'] = f"Error: {e}"
+
+        return result
+
+    def write_markdown_file_to_tab(
+        self,
+        markdown_path: Path,
+        doc_id: str,
+        tab_id: Optional[str] = None,
+        replace: bool = False
+    ) -> Dict[str, str]:
+        """Write a markdown file to a specific tab.
+
+        Args:
+            markdown_path: Path to markdown file
+            doc_id: Document ID
+            tab_id: Tab ID (None for first tab)
+            replace: If True, clear existing content first
+
+        Returns:
+            Dict with result info
+        """
+        if not markdown_path.exists():
+            return {
+                'doc_id': doc_id,
+                'tab_id': tab_id,
+                'status': 'error',
+                'message': f"File not found: {markdown_path}",
+                'webViewLink': None
+            }
+
+        with open(markdown_path, 'r', encoding='utf-8') as f:
+            markdown_content = f.read()
+
+        return self.write_to_tab(doc_id, markdown_content, tab_id, replace)
 
     def convert_markdown_to_html(self, markdown_path: Path) -> str:
         """Convert a markdown file to HTML.

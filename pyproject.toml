@@ -65,6 +65,7 @@ gdrive-download = "gdrive_download.cli.download:main"
 gdrive-manage = "gdrive_download.cli.manage:main"
 gdrive-search = "gdrive_download.cli.search:search"
 gdrive-upload = "gdrive_download.cli.upload:upload"
+gdrive-write-tab = "gdrive_download.cli.upload:write_to_doc"
 
 [project.gui-scripts]
 gdrive-gui = "gdrive_download.gui:main"
