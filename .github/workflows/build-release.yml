@@ -1,0 +1,95 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - gui-app
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: macOS
+          - os: windows-latest
+            platform: Windows
+          - os: ubuntu-latest
+            platform: Linux
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller packaging/gdrive-gui.spec --clean --distpath dist/
+        timeout-minutes: 10
+
+      - name: Prepare macOS artifact
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd dist
+          zip -r "GDrive-Tools-macOS.zip" "GDrive Tools.app"
+          rm -rf "GDrive Tools.app"
+
+      - name: Prepare Windows artifact
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd dist
+          ren "GDrive Tools.exe" "GDrive-Tools-Windows.exe"
+        shell: cmd
+
+      - name: Prepare Linux artifact
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd dist
+          mv "GDrive Tools" "GDrive-Tools-Linux"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GDrive-Tools-${{ matrix.platform }}
+          path: dist/GDrive-Tools-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
