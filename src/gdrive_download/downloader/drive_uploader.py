@@ -895,13 +895,38 @@ class GoogleDriveUploader:
         html_body = self.md.render(markdown_content)
 
         # Wrap in a proper HTML document for Google Docs import
-        # Google Docs handles basic HTML well
+        # Add CSS to minimize style override and promote inheritance from target document
         title = markdown_path.stem
         html_document = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>{title}</title>
+    <style>
+        /* Prevent explicit font specifications to allow target document styles to apply */
+        body {{
+            font-family: sans-serif;
+            font-size: inherit;
+        }}
+        /* Let headings use document's heading styles */
+        h1, h2, h3, h4, h5, h6 {{
+            font-family: inherit;
+        }}
+        /* Normal paragraph text should inherit from document */
+        p {{
+            font-family: inherit;
+            font-size: inherit;
+            margin: 1em 0;
+        }}
+        /* Code blocks should use monospace */
+        pre, code {{
+            font-family: 'Courier New', monospace;
+        }}
+        /* Remove any other styling that might interfere */
+        * {{
+            -webkit-text-size-adjust: none;
+        }}
+    </style>
 </head>
 <body>
 {html_body}

@@ -171,6 +171,32 @@ class TestConvertMarkdownToHtml:
         assert "<h2>" in html
         assert 'href="https://example.com"' in html
 
+    def test_convert_markdown_uses_style_inheritance(self, mock_uploader, sample_markdown_file):
+        """Test that generated HTML uses 'inherit' for fonts to respect target document styles."""
+        html = mock_uploader.convert_markdown_to_html(sample_markdown_file)
+
+        # Verify CSS is included
+        assert "<style>" in html
+        assert "</style>" in html
+
+        # Verify font-family: inherit is used for text elements
+        assert "font-family: inherit" in html
+
+        # Verify font-size: inherit is used for text elements
+        assert "font-size: inherit" in html
+
+        # Verify code blocks still use monospace (explicit font)
+        assert "Courier New" in html or "monospace" in html
+
+        # Verify styling doesn't hardcode specific fonts for normal text
+        # The key is that p, h1-h6 should inherit, not specify fonts
+        assert "p {" in html or "p{" in html
+        # Check that the p style block contains inherit
+        import re
+        p_style_match = re.search(r'p\s*\{[^}]*\}', html, re.DOTALL)
+        assert p_style_match is not None
+        assert "inherit" in p_style_match.group(0)
+
 
 class TestUploadAsGoogleDoc:
     """Tests for the upload functionality."""
