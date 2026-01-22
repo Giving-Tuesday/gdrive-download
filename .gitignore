@@ -180,6 +180,9 @@ aar_data/
 # Search output directories (created by gdrive-search)
 search_*/
 
+# Download output directories (created by gdrive-download)
+gdrive_folder_*/
+
 # Test output directories
 Test_*/
 
