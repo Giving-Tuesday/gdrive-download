@@ -794,8 +794,9 @@ class GoogleDriveUploader:
 
             # Adjust indices if not replacing (append mode)
             if not replace and tab_info['content_length'] > 1:
-                # Insert at end of existing content
-                offset = tab_info['content_length'] - 1
+                # Insert before the final newline (end_index - 1 is last char position)
+                # Converter starts at index 1, so offset = (end_index - 1) - 1
+                offset = tab_info['content_length'] - 2
                 for req in insert_requests:
                     if 'insertText' in req:
                         req['insertText']['location']['index'] += offset
