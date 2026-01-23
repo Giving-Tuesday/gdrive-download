@@ -477,46 +477,20 @@ class MarkdownToDocsConverter:
     ) -> List[dict]:
         """Generate text style requests for inline formatting.
 
-        This method handles both regular text styles (bold, italic, etc.) and footnotes.
-        Footnotes are inserted first, then other styles are applied with adjusted indices.
+        Note: Footnote references in styles are ignored as Google Docs API
+        footnote creation requires a complex two-pass process that is not
+        currently supported. Footnotes will appear as plain text (e.g., [^1]).
         """
         requests = []
 
-        # Separate footnote references from other styles
-        footnote_refs = [s for s in styles if s.get('type') == 'footnote_ref']
-        other_styles = [s for s in styles if s.get('type') != 'footnote_ref']
-
-        # Process footnotes first (they affect document indices)
-        # Sort by position (reverse order to maintain correct indices)
-        footnote_refs_sorted = sorted(footnote_refs, key=lambda x: x['position'], reverse=True)
-
-        index_offset = 0
-        for footnote_ref in reversed(footnote_refs_sorted):  # Process in forward order
-            footnote_id = footnote_ref.get('id', 0)
-            footnote_content = self.footnote_definitions.get(footnote_id, '')
-            position = base_index + footnote_ref['position'] + index_offset
-
-            location = {'index': position}
-            if tab_id:
-                location['tabId'] = tab_id
-
-            requests.append({
-                'insertFootnote': {
-                    'location': location,
-                    'footnoteText': footnote_content
-                }
-            })
-            # Each footnote insertion adds 1 character (the footnote marker)
-            index_offset += 1
-
-        # Now process other styles with adjusted indices
-        for style in other_styles:
-            # Adjust indices based on footnotes inserted before this style
-            footnotes_before = sum(1 for fn in footnote_refs if fn['position'] <= style['start'])
+        for style in styles:
+            # Skip footnote references - they'll appear as plain text
+            if style.get('type') == 'footnote_ref':
+                continue
 
             range_base = {
-                'startIndex': base_index + style['start'] + footnotes_before,
-                'endIndex': base_index + style['end'] + footnotes_before
+                'startIndex': base_index + style['start'],
+                'endIndex': base_index + style['end']
             }
             if tab_id:
                 range_base['tabId'] = tab_id
@@ -1172,7 +1146,7 @@ class GoogleDriveUploader:
             )
 
             # Upload and convert to Google Doc
-            uploaded_file = self.service.files().create(
+            uploaded_file = self.drive_service.files().create(
                 body=file_metadata,
                 media_body=media,
                 fields='id,name,webViewLink',

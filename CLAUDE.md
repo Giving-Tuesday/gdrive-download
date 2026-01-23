@@ -9,7 +9,30 @@ This repository contains two linked Python packages:
 1. **`gdrive-download`** - Core Google Drive document downloading and conversion tool
 2. **`document-analyzer`** - Generic document analysis framework with template-based architecture
 
-The system is designed with clear separation of concerns: `gdrive-download` focuses purely on downloading and converting documents from Google Drive to markdown, while `document-analyzer` provides extensible analysis capabilities for structured documents. AAR (After Action Review) analysis is provided as the primary template, but the framework supports any document type. 
+The system is designed with clear separation of concerns: `gdrive-download` focuses purely on downloading and converting documents from Google Drive to markdown, while `document-analyzer` provides extensible analysis capabilities for structured documents. AAR (After Action Review) analysis is provided as the primary template, but the framework supports any document type.
+
+## Known Limitations
+
+### Footnote Handling
+
+**Download (DOCX → Markdown):** ✅ **Fully Supported**
+- Word document footnotes are converted to Pandoc-style markdown footnotes
+- Format: `[^1]` for references, `[^1]: content` for definitions
+- Preserves footnote content and sequential numbering
+
+**Upload (Markdown → Google Docs):** ⚠️ **Not Supported**
+- Pandoc-style footnotes in markdown files are uploaded as plain text (e.g., `[^1]`)
+- Google Docs API footnote creation requires a complex two-pass batchUpdate process
+- Implementing this would require significant architectural changes with marginal benefit
+- **Workaround:** Manually insert footnotes in Google Docs after upload using Insert → Footnote
+
+**Why Not Supported:**
+- Google Docs API `createFootnote` returns a `footnoteId` in the response
+- Adding content requires a second batchUpdate with `insertText` using that `footnoteId` as `segmentId`
+- This necessitates: (1) parsing batchUpdate responses, (2) mapping footnote IDs, (3) generating second request set
+- HTML import path (currently used) does not preserve footnotes either
+
+**Bottom Line:** Footnotes work great for download/conversion but remain as text markers when uploading to Google Docs. 
 
 ## Core Commands
 
