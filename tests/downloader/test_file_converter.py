@@ -20,32 +20,37 @@ def test_file_converter_init(temp_dir):
 
 
 @patch('gdrive_download.downloader.file_converter.mammoth')
-@patch('gdrive_download.downloader.file_converter.markdownify')
-def test_convert_docx_to_markdown(mock_markdownify, mock_mammoth, temp_dir, sample_docx_content):
+@patch('gdrive_download.downloader.file_converter.FootnotePreservingConverter')
+def test_convert_docx_to_markdown(mock_converter_class, mock_mammoth, temp_dir, sample_docx_content):
     """Test DOCX to markdown conversion."""
     # Setup mocks
     mock_result = MagicMock()
     mock_result.value = sample_docx_content
     mock_result.messages = []
     mock_mammoth.convert_to_html.return_value = mock_result
-    mock_markdownify.markdownify.return_value = "# Converted Markdown"
-    
+
+    # Mock the converter instance
+    mock_converter_instance = MagicMock()
+    mock_converter_instance.convert.return_value = "# Converted Markdown"
+    mock_converter_class.return_value = mock_converter_instance
+
     input_dir = temp_dir / "input"
     output_dir = temp_dir / "output"
     input_dir.mkdir()
-    
+
     # Create test file
     test_file = input_dir / "test.docx"
     test_file.write_bytes(b"fake docx content")
-    
+
     converter = FileConverter(input_dir, output_dir)
-    
+
     with patch('builtins.open', mock_open(read_data=b"fake docx content")):
         result = converter.convert_docx_to_markdown(test_file)
-    
+
     assert result == "# Converted Markdown"
     mock_mammoth.convert_to_html.assert_called_once()
-    mock_markdownify.markdownify.assert_called_once_with(sample_docx_content, heading_style="ATX")
+    mock_converter_class.assert_called_once_with(heading_style="ATX")
+    mock_converter_instance.convert.assert_called_once_with(sample_docx_content)
 
 
 def test_convert_file_docx(temp_dir):

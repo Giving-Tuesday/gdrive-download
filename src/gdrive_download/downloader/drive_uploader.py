@@ -36,9 +36,13 @@ class MarkdownToDocsConverter:
     def __init__(self):
         try:
             from markdown_it import MarkdownIt
+            from mdit_py_plugins.footnote import footnote_plugin
+
             self.md = MarkdownIt("commonmark")
+            self.md.use(footnote_plugin)  # Enable footnote support
+            self.footnote_definitions = {}  # Store footnote content by ID
         except ImportError:
-            raise ImportError("markdown-it-py is required")
+            raise ImportError("markdown-it-py and mdit-py-plugins are required")
 
     def convert(self, markdown_content: str, tab_id: Optional[str] = None) -> List[dict]:
         """Convert markdown to Google Docs API requests.
@@ -50,14 +54,19 @@ class MarkdownToDocsConverter:
         Returns:
             List of batchUpdate request dicts
         """
+        # Reset footnote definitions for each conversion
+        self.footnote_definitions = {}
+
         tokens = self.md.parse(markdown_content)
         requests = []
         current_index = 1  # Google Docs starts at index 1
 
-        # First pass: collect all text and structure
+        # First pass: collect all text and structure (including footnote definitions)
         elements = self._parse_tokens(tokens)
 
         # Second pass: generate requests
+        # Note: footnote insertions are handled within _generate_style_requests
+        # and automatically adjust the document indices
         for element in elements:
             elem_requests, new_index = self._generate_requests(
                 element, current_index, tab_id
@@ -153,6 +162,31 @@ class MarkdownToDocsConverter:
             elif token.type == 'hr':
                 elements.append({'type': 'hr'})
                 i += 1
+
+            elif token.type == 'footnote_block_open':
+                # Parse footnote definitions
+                i += 1
+                footnote_id = 0
+                while i < len(tokens) and tokens[i].type != 'footnote_block_close':
+                    if tokens[i].type == 'footnote_open':
+                        # Get footnote ID from meta
+                        footnote_meta = tokens[i].meta
+                        footnote_id = footnote_meta.get('id', footnote_id)
+                        i += 1
+
+                        # Collect footnote content (typically paragraph with inline)
+                        footnote_content = ''
+                        while i < len(tokens) and tokens[i].type != 'footnote_close':
+                            if tokens[i].type == 'inline':
+                                footnote_content, _ = self._parse_inline_with_state(tokens[i].children)
+                            i += 1
+
+                        # Store footnote content by ID
+                        self.footnote_definitions[footnote_id] = footnote_content
+                        i += 1  # Skip footnote_close
+                    else:
+                        i += 1
+                i += 1  # Skip footnote_block_close
 
             else:
                 i += 1
@@ -257,6 +291,18 @@ class MarkdownToDocsConverter:
                 text += ' '
             elif child.type == 'hardbreak':
                 text += '\n'
+            elif child.type == 'footnote_ref':
+                # Track footnote reference position
+                # The footnote will be inserted at this position in the document
+                footnote_label = child.meta.get('label', '1')
+                footnote_id = child.meta.get('id', 0)
+                styles.append({
+                    'type': 'footnote_ref',
+                    'position': len(text),
+                    'label': footnote_label,
+                    'id': footnote_id
+                })
+                # Don't add any text - footnote will be inserted via API
 
         return text, styles
 
@@ -429,13 +475,48 @@ class MarkdownToDocsConverter:
         base_index: int,
         tab_id: Optional[str]
     ) -> List[dict]:
-        """Generate text style requests for inline formatting."""
+        """Generate text style requests for inline formatting.
+
+        This method handles both regular text styles (bold, italic, etc.) and footnotes.
+        Footnotes are inserted first, then other styles are applied with adjusted indices.
+        """
         requests = []
 
-        for style in styles:
+        # Separate footnote references from other styles
+        footnote_refs = [s for s in styles if s.get('type') == 'footnote_ref']
+        other_styles = [s for s in styles if s.get('type') != 'footnote_ref']
+
+        # Process footnotes first (they affect document indices)
+        # Sort by position (reverse order to maintain correct indices)
+        footnote_refs_sorted = sorted(footnote_refs, key=lambda x: x['position'], reverse=True)
+
+        index_offset = 0
+        for footnote_ref in reversed(footnote_refs_sorted):  # Process in forward order
+            footnote_id = footnote_ref.get('id', 0)
+            footnote_content = self.footnote_definitions.get(footnote_id, '')
+            position = base_index + footnote_ref['position'] + index_offset
+
+            location = {'index': position}
+            if tab_id:
+                location['tabId'] = tab_id
+
+            requests.append({
+                'insertFootnote': {
+                    'location': location,
+                    'footnoteText': footnote_content
+                }
+            })
+            # Each footnote insertion adds 1 character (the footnote marker)
+            index_offset += 1
+
+        # Now process other styles with adjusted indices
+        for style in other_styles:
+            # Adjust indices based on footnotes inserted before this style
+            footnotes_before = sum(1 for fn in footnote_refs if fn['position'] <= style['start'])
+
             range_base = {
-                'startIndex': base_index + style['start'],
-                'endIndex': base_index + style['end']
+                'startIndex': base_index + style['start'] + footnotes_before,
+                'endIndex': base_index + style['end'] + footnotes_before
             }
             if tab_id:
                 range_base['tabId'] = tab_id

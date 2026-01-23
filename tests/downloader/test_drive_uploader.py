@@ -431,6 +431,159 @@ class TestMarkdownToDocsConverter:
         assert len(link_reqs) >= 1
         assert link_reqs[0]['updateTextStyle']['textStyle']['link']['url'] == 'https://example.com'
 
+    def test_footnote_plugin_enabled(self):
+        """Test that the footnote plugin is enabled."""
+        converter = MarkdownToDocsConverter()
+
+        # Check that mdit-py-plugins is available
+        assert hasattr(converter, 'footnote_definitions')
+        assert isinstance(converter.footnote_definitions, dict)
+
+    def test_convert_single_footnote(self):
+        """Test converting a document with a single footnote."""
+        converter = MarkdownToDocsConverter()
+        markdown = "This is text with a footnote[^1].\n\n[^1]: This is the footnote content.\n"
+
+        requests = converter.convert(markdown)
+
+        # Should have insertText for the main paragraph
+        insert_reqs = [r for r in requests if 'insertText' in r]
+        assert len(insert_reqs) >= 1
+
+        # Should have insertFootnote request
+        footnote_reqs = [r for r in requests if 'insertFootnote' in r]
+        assert len(footnote_reqs) == 1
+
+        # Check footnote content
+        footnote_req = footnote_reqs[0]
+        assert footnote_req['insertFootnote']['footnoteText'] == 'This is the footnote content.'
+
+        # Check that footnote definitions were stored
+        assert 0 in converter.footnote_definitions
+        assert converter.footnote_definitions[0] == 'This is the footnote content.'
+
+    def test_convert_multiple_footnotes(self):
+        """Test converting a document with multiple footnotes."""
+        converter = MarkdownToDocsConverter()
+        markdown = """First footnote[^1] and second[^2].
+
+[^1]: First footnote content.
+[^2]: Second footnote content.
+"""
+
+        requests = converter.convert(markdown)
+
+        # Should have two insertFootnote requests
+        footnote_reqs = [r for r in requests if 'insertFootnote' in r]
+        assert len(footnote_reqs) == 2
+
+        # Check footnote contents
+        footnote_texts = [r['insertFootnote']['footnoteText'] for r in footnote_reqs]
+        assert 'First footnote content.' in footnote_texts
+        assert 'Second footnote content.' in footnote_texts
+
+    def test_footnote_with_formatting(self):
+        """Test footnote with bold/italic formatting."""
+        converter = MarkdownToDocsConverter()
+        markdown = """Text with footnote[^1].
+
+[^1]: Footnote with **bold** text.
+"""
+
+        requests = converter.convert(markdown)
+
+        # Should have insertFootnote request
+        footnote_reqs = [r for r in requests if 'insertFootnote' in r]
+        assert len(footnote_reqs) == 1
+
+        # Footnote content should include the text (formatting may be stripped)
+        footnote_text = footnote_reqs[0]['insertFootnote']['footnoteText']
+        assert 'bold' in footnote_text
+
+    def test_footnote_numbering(self):
+        """Test that footnotes are numbered correctly."""
+        converter = MarkdownToDocsConverter()
+        markdown = """First[^1], second[^2], third[^3].
+
+[^1]: One
+[^2]: Two
+[^3]: Three
+"""
+
+        requests = converter.convert(markdown)
+
+        footnote_reqs = [r for r in requests if 'insertFootnote' in r]
+        assert len(footnote_reqs) == 3
+
+        # Check that all three footnotes have content
+        assert converter.footnote_definitions[0] == 'One'
+        assert converter.footnote_definitions[1] == 'Two'
+        assert converter.footnote_definitions[2] == 'Three'
+
+    def test_footnote_index_tracking(self):
+        """Test that footnote positions are tracked correctly."""
+        converter = MarkdownToDocsConverter()
+        markdown = "Start[^1] middle[^2] end.\n\n[^1]: First\n[^2]: Second\n"
+
+        requests = converter.convert(markdown)
+
+        # Get insertFootnote requests
+        footnote_reqs = [r for r in requests if 'insertFootnote' in r]
+        assert len(footnote_reqs) == 2
+
+        # Both should have location indices
+        for req in footnote_reqs:
+            assert 'location' in req['insertFootnote']
+            assert 'index' in req['insertFootnote']['location']
+
+    def test_footnote_definitions_reset_between_conversions(self):
+        """Test that footnote definitions are reset between conversions."""
+        converter = MarkdownToDocsConverter()
+
+        # First conversion
+        markdown1 = "Text[^1].\n\n[^1]: First doc footnote.\n"
+        converter.convert(markdown1)
+        assert 0 in converter.footnote_definitions
+
+        # Second conversion should reset
+        markdown2 = "Different[^1].\n\n[^1]: Second doc footnote.\n"
+        converter.convert(markdown2)
+
+        # Should have new content, not old
+        assert converter.footnote_definitions[0] == 'Second doc footnote.'
+
+    def test_mixed_content_with_footnotes(self):
+        """Test document with headings, lists, and footnotes."""
+        converter = MarkdownToDocsConverter()
+        markdown = """# Heading with footnote[^1]
+
+- List item one[^2]
+- List item two
+
+[^1]: Heading footnote.
+[^2]: List footnote.
+"""
+
+        requests = converter.convert(markdown)
+
+        # Should have heading, list, and footnote requests
+        assert any('updateParagraphStyle' in r for r in requests)  # Heading
+        assert any('createParagraphBullets' in r for r in requests)  # List
+        footnote_reqs = [r for r in requests if 'insertFootnote' in r]
+        assert len(footnote_reqs) == 2
+
+    def test_footnote_with_tab_id(self):
+        """Test that tab ID is included in footnote requests."""
+        converter = MarkdownToDocsConverter()
+        markdown = "Text[^1].\n\n[^1]: Footnote.\n"
+
+        requests = converter.convert(markdown, tab_id="t.abc123")
+
+        # Check that footnote has tabId
+        footnote_reqs = [r for r in requests if 'insertFootnote' in r]
+        assert len(footnote_reqs) == 1
+        assert footnote_reqs[0]['insertFootnote']['location'].get('tabId') == 't.abc123'
+
 
 class TestWriteToTab:
     """Tests for writing to document tabs."""
