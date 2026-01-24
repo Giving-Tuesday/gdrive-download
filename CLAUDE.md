@@ -32,15 +32,54 @@ The system is designed with clear separation of concerns: `gdrive-download` focu
   - Use when Pandoc is not available
   - Faster but limited formatting support
 
-### Usage
+### Two Upload Workflows
+
+**IMPORTANT:** There are two distinct upload workflows, each with different capabilities:
+
+#### Workflow 1: Create New Documents (gdrive-upload)
 
 ```bash
-# Upload with Pandoc (default, preserves footnotes)
+# Creates NEW Google Doc in specified folder
 gdrive-upload -f document.md --folder-id FOLDER_ID
-
-# Upload with HTML method (fallback)
-gdrive-upload -f document.md --folder-id FOLDER_ID --method html
 ```
+
+**Capabilities:**
+- ✅ Preserves footnotes as native Google Docs footnotes (Pandoc method)
+- ✅ Best formatting preservation (tables, lists, headers)
+- ✅ Can upload multiple files to a folder at once
+- ❌ CANNOT update existing documents
+- ❌ CANNOT target specific tabs in existing documents
+- ❌ Always creates a new document
+
+**Use when:** Creating new documents, especially with footnotes
+
+#### Workflow 2: Update Existing Documents (gdrive-write-tab)
+
+```bash
+# Updates content in existing Google Doc (specific tab)
+gdrive-write-tab -f document.md --doc-id DOC_ID --tab-id TAB_ID
+```
+
+**Capabilities:**
+- ✅ CAN update existing documents
+- ✅ CAN target specific tabs
+- ✅ CAN append or replace content
+- ✅ Uses Google Docs API for direct content insertion
+- ❌ Footnotes appear as plain text `[^1]` (not clickable)
+- ❌ Must manually insert footnotes in Google Docs UI after upload
+
+**Use when:** Updating existing documents, adding content to tabs, no footnotes needed
+
+#### The Tradeoff
+
+This is a fundamental limitation of Google's APIs:
+- **Want footnotes?** → Must create new document (Pandoc method)
+- **Need to update existing doc?** → Footnotes become plain text (API method)
+
+**Workaround for updating docs with footnotes:**
+1. Upload using `gdrive-upload` (creates new doc with footnotes)
+2. Manually copy content from new doc to existing doc in Google Docs UI
+3. Or: Upload with `gdrive-write-tab` and manually insert footnotes using Insert → Footnote
 
 ### Implementation Details
 
