@@ -11,28 +11,51 @@ This repository contains two linked Python packages:
 
 The system is designed with clear separation of concerns: `gdrive-download` focuses purely on downloading and converting documents from Google Drive to markdown, while `document-analyzer` provides extensible analysis capabilities for structured documents. AAR (After Action Review) analysis is provided as the primary template, but the framework supports any document type.
 
-## Known Limitations
+## Footnote Handling
 
-### Footnote Handling
+### Full Round-Trip Support ✅
 
 **Download (DOCX → Markdown):** ✅ **Fully Supported**
 - Word document footnotes are converted to Pandoc-style markdown footnotes
 - Format: `[^1]` for references, `[^1]: content` for definitions
 - Preserves footnote content and sequential numbering
 
-**Upload (Markdown → Google Docs):** ⚠️ **Not Supported**
-- Pandoc-style footnotes in markdown files are uploaded as plain text (e.g., `[^1]`)
-- Google Docs API footnote creation requires a complex two-pass batchUpdate process
-- Implementing this would require significant architectural changes with marginal benefit
-- **Workaround:** Manually insert footnotes in Google Docs after upload using Insert → Footnote
+**Upload (Markdown → Google Docs):** ✅ **Fully Supported (via Pandoc)**
+- **Pandoc Method (Default):** Converts markdown → DOCX → Google Docs
+  - Preserves footnotes as native Google Docs footnotes
+  - Maintains footnote numbering and content
+  - Supports formatted text within footnotes (bold, italic, links, code)
+  - Requires Pandoc to be installed: `brew install pandoc` (macOS)
 
-**Why Not Supported:**
-- Google Docs API `createFootnote` returns a `footnoteId` in the response
-- Adding content requires a second batchUpdate with `insertText` using that `footnoteId` as `segmentId`
-- This necessitates: (1) parsing batchUpdate responses, (2) mapping footnote IDs, (3) generating second request set
-- HTML import path (currently used) does not preserve footnotes either
+- **HTML Method (Fallback):** Direct HTML import
+  - Footnotes appear as plain text markers (e.g., `[^1]`)
+  - Use when Pandoc is not available
+  - Faster but limited formatting support
 
-**Bottom Line:** Footnotes work great for download/conversion but remain as text markers when uploading to Google Docs. 
+### Usage
+
+```bash
+# Upload with Pandoc (default, preserves footnotes)
+gdrive-upload -f document.md --folder-id FOLDER_ID
+
+# Upload with HTML method (fallback)
+gdrive-upload -f document.md --folder-id FOLDER_ID --method html
+```
+
+### Implementation Details
+
+**Pandoc Method Workflow:**
+1. Markdown with `[^1]` footnote syntax → Pandoc → DOCX with native footnotes
+2. DOCX uploaded to Google Drive with `mimeType: application/vnd.google-apps.document`
+3. Google Drive automatically converts DOCX → Google Docs, preserving footnotes
+
+**Why This Works:**
+- Pandoc natively supports the `[^1]` footnote syntax (it invented it)
+- DOCX format has native footnote support
+- Google Drive's DOCX → Google Docs conversion preserves footnotes
+- Simpler and more reliable than complex two-pass API approach
+
+**Bottom Line:** Footnotes work end-to-end with the Pandoc method. Download preserves them, upload preserves them. 
 
 ## Core Commands
 
@@ -71,6 +94,11 @@ gdrive-search -p "AAR*"                    # Search all drives
 gdrive-search -p "*2024*" -s personal      # Search personal drive only
 gdrive-search -p "^AAR.*\.docx$"           # Regex pattern search
 
+# Upload markdown files to Google Drive as Google Docs
+gdrive-upload -f document.md --folder-id FOLDER_ID                    # Default: Pandoc method
+gdrive-upload -f document.md --folder-id FOLDER_ID --method html      # HTML import method
+gdrive-upload -d markdown_folder/ --folder-id FOLDER_ID               # Upload directory
+
 # Create shortcuts to search results in a Google Drive folder
 gdrive-search -p "AAR*" --no-download --create-shortcuts FOLDER_ID
 gdrive-search -p "Project Brief*" --create-shortcuts FOLDER_ID  # Search, download, and create shortcuts
@@ -84,6 +112,21 @@ gdrive-search -p "Project*" --since 2w     # Last 2 weeks (also supports: 1h, 1m
 gdrive-manage status
 gdrive-manage init-config
 ```
+
+**Installation Requirements:**
+
+For full footnote support during upload, install Pandoc:
+```bash
+# macOS
+brew install pandoc
+
+# Linux (Debian/Ubuntu)
+sudo apt-get install pandoc
+
+# Or download from https://pandoc.org/installing.html
+```
+
+The tool will automatically use the HTML method if Pandoc is not available.
 
 #### document-analyzer Package (Future CLI)
 ```bash

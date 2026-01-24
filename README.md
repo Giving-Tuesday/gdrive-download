@@ -272,6 +272,80 @@ Options:
 gdrive-download -u "https://drive.google.com/drive/folders/1UuS4Q2z1nsFI-eEy5K4TLx6qoJvzHrAK"
 ```
 
+### `gdrive-upload` - Upload Markdown to Google Docs
+
+Upload markdown files to Google Drive as native Google Docs, with **full footnote preservation** using Pandoc.
+
+```bash
+gdrive-upload [OPTIONS]
+
+Required (at least one):
+  -f, --file PATH           Markdown file(s) to upload (can be specified multiple times)
+  -d, --directory PATH      Directory containing markdown files
+
+Required (one):
+  -t, --folder-id TEXT      Target Google Drive folder ID
+  --folder-url TEXT         Target Google Drive folder URL
+
+Options:
+  -c, --credentials TEXT    Credentials file [default: credentials.json]
+  -p, --pattern TEXT        Glob pattern for directory search [default: *.md]
+  --method [pandoc|html]    Conversion method [default: pandoc]
+                            - pandoc: Preserves footnotes (requires Pandoc)
+                            - html: Fallback method
+  --preview/--no-preview    Preview files before upload [default: preview]
+  --skip-existing/--replace-existing
+                            Skip or replace existing documents [default: skip]
+```
+
+**Examples:**
+
+```bash
+# Upload a single file (preserves footnotes)
+gdrive-upload -f document.md --folder-id 1ABC123xyz
+
+# Upload multiple files
+gdrive-upload -f doc1.md -f doc2.md --folder-id 1ABC123xyz
+
+# Upload all markdown files from a directory
+gdrive-upload -d markdown/ --folder-id 1ABC123xyz
+
+# Use HTML method if Pandoc not installed
+gdrive-upload -f document.md --folder-id 1ABC123xyz --method html
+```
+
+**Footnote Support:**
+
+The **Pandoc method** (default) preserves footnotes by converting markdown → DOCX → Google Docs:
+
+```markdown
+This is text with a footnote[^1].
+
+[^1]: This is the footnote content.
+```
+
+Becomes a native Google Docs footnote! Supports:
+- ✅ Footnote numbering
+- ✅ Formatted text in footnotes (**bold**, *italic*, `code`)
+- ✅ Links in footnotes
+- ✅ Multiple footnotes per document
+
+**Requirements:**
+
+Install Pandoc for footnote support:
+
+```bash
+# macOS
+brew install pandoc
+
+# Linux (Debian/Ubuntu)
+sudo apt-get install pandoc
+
+# Or download from https://pandoc.org/installing.html
+```
+
+If Pandoc is not installed, the tool automatically falls back to the HTML method (footnotes appear as plain text).
+
 ### `gdrive-manage` - Utilities
 
 ```bash

@@ -6,6 +6,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 from rich.prompt import Confirm
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 from gdrive_download.config import GlobalConfig
 from gdrive_download.downloader import GoogleDriveUploader
@@ -140,6 +141,9 @@ def display_results_table(results: List[dict]):
               help='Preview files before upload (default: preview)')
 @click.option('--skip-existing/--replace-existing', 'skip_existing', default=True,
               help='Skip documents that already exist (default: skip)')
+@click.option('--method', type=click.Choice(['html', 'pandoc'], case_sensitive=False),
+              default='pandoc',
+              help='Conversion method: "pandoc" (preserves footnotes) or "html" (fallback)')
 def upload(
     files: tuple,
     directory: Optional[str],
@@ -148,17 +152,19 @@ def upload(
     credentials: str,
     pattern: str,
     preview: bool,
-    skip_existing: bool
+    skip_existing: bool,
+    method: str
 ):
     """Upload markdown files to Google Drive as native Google Docs.
 
-    Converts markdown files to HTML and uploads them as Google Docs,
-    preserving formatting like headers, bold, lists, and links.
+    Converts markdown files to Google Docs using either Pandoc (default, preserves
+    footnotes) or HTML (fallback). The Pandoc method converts to DOCX first, which
+    Google Drive then converts to Google Docs format with native footnotes.
 
     Examples:
 
     \b
-    # Upload a single file
+    # Upload with Pandoc (default, preserves footnotes)
     gdrive-upload -f report.md --folder-id 1ABC123
 
     \b
@@ -172,6 +178,10 @@ def upload(
     \b
     # Upload using folder URL instead of ID
     gdrive-upload -f doc.md --folder-url "https://drive.google.com/drive/folders/1ABC123"
+
+    \b
+    # Use HTML method (if Pandoc not available)
+    gdrive-upload -f doc.md --folder-id 1ABC123 --method html
 
     \b
     # Upload without preview prompt
@@ -245,13 +255,50 @@ def upload(
             return
 
     # Upload files
-    console.print(f"\n[bold blue]Uploading files...[/bold blue]")
+    console.print(f"\n[bold blue]Uploading files using {method.upper()} method...[/bold blue]")
 
-    results = uploader.upload_multiple(
-        markdown_files,
-        target_folder_id,
-        skip_existing=skip_existing
-    )
+    # Choose upload method
+    if method.lower() == 'pandoc':
+        # Use Pandoc method (preserves footnotes)
+        try:
+            from gdrive_download.downloader.pandoc_uploader import PandocUploader
+            pandoc_uploader = PandocUploader(uploader)
+
+            # Upload files using Pandoc
+            results = []
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console
+            ) as progress:
+                task = progress.add_task("Uploading files...", total=len(markdown_files))
+
+                for markdown_path in markdown_files:
+                    result = pandoc_uploader.upload_markdown_as_google_doc(
+                        markdown_path,
+                        target_folder_id,
+                        skip_existing=skip_existing
+                    )
+                    results.append(result)
+                    progress.advance(task)
+
+        except RuntimeError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            console.print("[yellow]Tip: Install Pandoc or use --method html[/yellow]")
+            raise click.Abort()
+        except ImportError as e:
+            console.print(f"[red]Error: {e}[/red]")
+            console.print("[yellow]Tip: Install pypandoc or use --method html[/yellow]")
+            raise click.Abort()
+    else:
+        # Use HTML method (original implementation)
+        results = uploader.upload_multiple(
+            markdown_files,
+            target_folder_id,
+            skip_existing=skip_existing
+        )
 
     # Display results
     console.print()
