@@ -125,12 +125,81 @@ class GoogleDriveDownloader:
             # Extract folder ID from /folders/ or /u/0/folders/ URLs
             folder_part = folder_url.split('/folders/')[1]
             return folder_part.split('?')[0].split('/')[0]
-        
+
         parsed = urlparse(folder_url)
         if 'id' in parse_qs(parsed.query):
             return parse_qs(parsed.query)['id'][0]
-        
+
         raise ValueError(f"Cannot extract folder ID from URL: {folder_url}")
+
+    def extract_file_id(self, file_url: str) -> str:
+        """Extract file ID from various Google Drive URL formats.
+
+        Supported formats:
+        - https://docs.google.com/document/d/FILE_ID/edit
+        - https://docs.google.com/spreadsheets/d/FILE_ID/edit
+        - https://docs.google.com/presentation/d/FILE_ID/edit
+        - https://drive.google.com/file/d/FILE_ID/view
+        - https://drive.google.com/open?id=FILE_ID
+        """
+        # Handle /d/FILE_ID/ pattern (docs, sheets, slides, drive file)
+        match = re.search(r'/d/([a-zA-Z0-9_-]+)', file_url)
+        if match:
+            return match.group(1)
+
+        # Handle ?id=FILE_ID pattern
+        parsed = urlparse(file_url)
+        query_params = parse_qs(parsed.query)
+        if 'id' in query_params:
+            return query_params['id'][0]
+
+        raise ValueError(f"Cannot extract file ID from URL: {file_url}")
+
+    def get_file_metadata(self, file_id: str) -> Dict:
+        """Get metadata for a single file by ID.
+
+        Returns:
+            Dict with 'id', 'name', 'mimeType', 'webViewLink' keys
+        """
+        try:
+            metadata = self.service.files().get(
+                fileId=file_id,
+                fields="id, name, mimeType, webViewLink",
+                supportsAllDrives=True
+            ).execute()
+            return metadata
+        except Exception as e:
+            raise ValueError(f"Cannot get metadata for file ID {file_id}: {e}")
+
+    def download_single_file(self, file_id: str = None, file_url: str = None) -> Tuple[str, Optional[Path]]:
+        """Download a single file by ID or URL.
+
+        Args:
+            file_id: Google Drive file ID
+            file_url: Google Drive file URL (alternative to file_id)
+
+        Returns:
+            Tuple of (webViewLink, local_file_path)
+        """
+        if not file_id and not file_url:
+            raise ValueError("Either file_id or file_url must be provided")
+
+        if file_url and not file_id:
+            file_id = self.extract_file_id(file_url)
+
+        # Get file metadata
+        metadata = self.get_file_metadata(file_id)
+
+        self.console.print(f"[blue]Downloading: {metadata['name']}[/blue]")
+
+        # Download the file
+        file_path = self.download_file(
+            file_id=metadata['id'],
+            file_name=metadata['name'],
+            mime_type=metadata['mimeType']
+        )
+
+        return (metadata.get('webViewLink', ''), file_path)
     
     def list_files_in_folder(self, folder_id: str, recursive: bool = True) -> List[Dict]:
         """List all files in a Google Drive folder."""

@@ -125,8 +125,17 @@ uv run pre-commit run --all-files  # Run all pre-commit hooks
 
 #### gdrive-download Package
 ```bash
-# Download and convert documents from Google Drive
+# Download all files from a Google Drive folder
 gdrive-download -u "https://drive.google.com/drive/folders/FOLDER_ID" -c credentials.json
+
+# Download a single file by URL
+gdrive-download -f "https://docs.google.com/document/d/FILE_ID/edit"
+
+# Download a single file by ID
+gdrive-download --file-id FILE_ID
+
+# Download with custom output directory
+gdrive-download -f "https://docs.google.com/document/d/FILE_ID/edit" -o ./my_docs/
 
 # Search for files by pattern across Google Drive
 gdrive-search -p "AAR*"                    # Search all drives

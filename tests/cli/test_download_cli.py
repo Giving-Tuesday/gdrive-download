@@ -17,10 +17,12 @@ def cli_runner():
 def test_download_cli_help(cli_runner):
     """Test CLI help message."""
     result = cli_runner.invoke(main, ['--help'])
-    
+
     assert result.exit_code == 0
-    assert 'Download AAR documents from Google Drive' in result.output
+    assert 'Download documents from Google Drive' in result.output
     assert '--folder-url' in result.output
+    assert '--file-url' in result.output
+    assert '--file-id' in result.output
     assert '--output-dir' in result.output
 
 
@@ -52,7 +54,7 @@ def test_download_cli_basic(mock_tracker, mock_converter, mock_downloader, cli_r
     result = cli_runner.invoke(main, [
         '--folder-url', 'https://drive.google.com/drive/folders/test123',
         '--output-dir', str(temp_dir / 'downloads'),
-        '--markdown-dir', str(temp_dir / 'markdown')
+        '--markdown-subdir', 'markdown'
     ])
     
     assert result.exit_code == 0
@@ -139,3 +141,76 @@ def test_download_cli_log_levels(cli_runner):
             '--log-level', level
         ])
         assert result.exit_code == 0
+
+
+@patch('gdrive_download.cli.download.GoogleDriveDownloader')
+@patch('gdrive_download.cli.download.FileConverter')
+def test_download_cli_single_file_by_url(mock_converter, mock_downloader, cli_runner, temp_dir):
+    """Test downloading a single file by URL."""
+    # Setup mocks
+    mock_downloader_instance = MagicMock()
+    mock_downloader.return_value = mock_downloader_instance
+    mock_downloader_instance.download_single_file.return_value = (
+        'https://docs.google.com/document/d/abc123/edit',
+        temp_dir / 'documents' / 'test.docx'
+    )
+
+    mock_converter_instance = MagicMock()
+    mock_converter.return_value = mock_converter_instance
+    mock_converter_instance.convert_all_files.return_value = [temp_dir / 'markdown' / 'test.md']
+
+    # Run CLI with file URL
+    result = cli_runner.invoke(main, [
+        '--file-url', 'https://docs.google.com/document/d/abc123/edit',
+        '--output-dir', str(temp_dir),
+        '--no-track'
+    ])
+
+    assert result.exit_code == 0
+    assert 'Downloaded 1 file(s)' in result.output
+    mock_downloader_instance.download_single_file.assert_called_once_with(
+        file_id=None,
+        file_url='https://docs.google.com/document/d/abc123/edit'
+    )
+
+
+@patch('gdrive_download.cli.download.GoogleDriveDownloader')
+@patch('gdrive_download.cli.download.FileConverter')
+def test_download_cli_single_file_by_id(mock_converter, mock_downloader, cli_runner, temp_dir):
+    """Test downloading a single file by ID."""
+    # Setup mocks
+    mock_downloader_instance = MagicMock()
+    mock_downloader.return_value = mock_downloader_instance
+    mock_downloader_instance.download_single_file.return_value = (
+        'https://docs.google.com/document/d/abc123/edit',
+        temp_dir / 'documents' / 'test.docx'
+    )
+
+    mock_converter_instance = MagicMock()
+    mock_converter.return_value = mock_converter_instance
+    mock_converter_instance.convert_all_files.return_value = [temp_dir / 'markdown' / 'test.md']
+
+    # Run CLI with file ID
+    result = cli_runner.invoke(main, [
+        '--file-id', 'abc123',
+        '--output-dir', str(temp_dir),
+        '--no-track'
+    ])
+
+    assert result.exit_code == 0
+    assert 'Downloaded 1 file(s)' in result.output
+    mock_downloader_instance.download_single_file.assert_called_once_with(
+        file_id='abc123',
+        file_url=None
+    )
+
+
+def test_download_cli_mutually_exclusive_sources(cli_runner):
+    """Test that specifying multiple sources is rejected."""
+    result = cli_runner.invoke(main, [
+        '--folder-url', 'https://drive.google.com/drive/folders/test123',
+        '--file-url', 'https://docs.google.com/document/d/abc123/edit'
+    ])
+
+    assert result.exit_code != 0
+    assert 'Specify only one of' in result.output
